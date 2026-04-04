@@ -1,4 +1,4 @@
-package zhaw.ch.lessonflow.repositories;
+package zhaw.ch.lessonflow.repository;
 
 import zhaw.ch.lessonflow.model.Enrollment;
 import org.springframework.data.mongodb.repository.MongoRepository;
