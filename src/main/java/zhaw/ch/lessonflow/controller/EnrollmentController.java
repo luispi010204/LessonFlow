@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Enrollment;
 import zhaw.ch.lessonflow.repository.EnrollmentRepository;
+import zhaw.ch.lessonflow.services.CourseService;
+import zhaw.ch.lessonflow.services.EnrollmentService;
 
 @RestController
 @RequestMapping("/api")
@@ -18,8 +20,22 @@ public class EnrollmentController {
     @Autowired
     EnrollmentRepository enrollmentRepository;
 
+    @Autowired
+    CourseService courseService;
+
+    @Autowired
+    EnrollmentService enrollmentService;
+
     @PostMapping("/enrollment")
     public ResponseEntity<Enrollment> createEnrollment(@RequestBody Enrollment enrollment) {
+        if (!courseService.courseExists(enrollment.getCourseId())) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        if (enrollmentService.isAlreadyEnrolled(enrollment.getCourseId(), enrollment.getLearnerUserId())) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
         return new ResponseEntity<>(savedEnrollment, HttpStatus.CREATED);
     }

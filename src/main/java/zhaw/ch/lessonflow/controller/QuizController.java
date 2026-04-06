@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.repository.QuizRepository;
+import zhaw.ch.lessonflow.services.LessonService;
 
 @RestController
 @RequestMapping("/api")
@@ -18,8 +19,15 @@ public class QuizController {
     @Autowired
     QuizRepository quizRepository;
 
+    @Autowired
+    LessonService lessonService;
+
     @PostMapping("/quiz")
     public ResponseEntity<Quiz> createQuiz(@RequestBody Quiz quiz) {
+        if (!lessonService.lessonExists(quiz.getLessonId())) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         Quiz savedQuiz = quizRepository.save(quiz);
         return new ResponseEntity<>(savedQuiz, HttpStatus.CREATED);
     }
