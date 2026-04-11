@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Lesson;
+import zhaw.ch.lessonflow.model.LessonCreateDTO;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 
@@ -23,14 +24,26 @@ public class LessonController {
     CourseService courseService;
 
     @PostMapping("/lesson")
-    public ResponseEntity<Lesson> createLesson(@RequestBody Lesson lesson) {
-        if (!courseService.courseExists(lesson.getCourseId())) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+public ResponseEntity<Lesson> createLesson(@RequestBody LessonCreateDTO fDTO) {
 
-        Lesson savedLesson = lessonRepository.save(lesson);
-        return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
+     if (!courseService.courseExists(fDTO.getCourseId())) {
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
     }
+    if (lessonRepository.findByCourseIdAndLessonNumber(
+        fDTO.getCourseId(), fDTO.getLessonNumber()).isPresent()) {
+    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+}
+    Lesson fDAO = new Lesson(
+            fDTO.getCourseId(),
+            fDTO.getLessonNumber(),
+            fDTO.getTitle(),
+            fDTO.getMaterial(),
+            fDTO.getMeetingLink()
+    );
+
+    Lesson savedLesson = lessonRepository.save(fDAO);
+    return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
+}
 
     @GetMapping("/lesson")
     public List<Lesson> getAllLessons() {

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Enrollment;
+import zhaw.ch.lessonflow.model.EnrollmentCreateDTO;
 import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.EnrollmentService;
@@ -27,16 +28,22 @@ public class EnrollmentController {
     EnrollmentService enrollmentService;
 
     @PostMapping("/enrollment")
-    public ResponseEntity<Enrollment> createEnrollment(@RequestBody Enrollment enrollment) {
-        if (!courseService.courseExists(enrollment.getCourseId())) {
+    public ResponseEntity<Enrollment> createEnrollment(@RequestBody EnrollmentCreateDTO fDTO) {
+
+        if (!courseService.courseExists(fDTO.getCourseId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        if (enrollmentService.isAlreadyEnrolled(enrollment.getCourseId(), enrollment.getLearnerUserId())) {
+        if (enrollmentService.isAlreadyEnrolled(fDTO.getCourseId(), fDTO.getLearnerUserId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+        Enrollment fDAO = new Enrollment(
+                fDTO.getCourseId(),
+                fDTO.getLearnerUserId(),
+                fDTO.getStatus());
+
+        Enrollment savedEnrollment = enrollmentRepository.save(fDAO);
         return new ResponseEntity<>(savedEnrollment, HttpStatus.CREATED);
     }
 

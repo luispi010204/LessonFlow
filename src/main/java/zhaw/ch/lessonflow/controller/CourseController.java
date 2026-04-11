@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Course;
+import zhaw.ch.lessonflow.model.CourseCreateDTO;
 import zhaw.ch.lessonflow.repository.CourseRepository;
 
 @RestController
@@ -19,9 +20,16 @@ public class CourseController {
     CourseRepository courseRepository;
 
     @PostMapping("/course")
-    public ResponseEntity<Course> createCourse(@RequestBody Course course) {
-        Course savedCourse = courseRepository.save(course);
-        return new ResponseEntity<>(savedCourse, HttpStatus.CREATED);
+    public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
+
+        Course fDAO = new Course(
+                fDTO.getTutorUserId(),
+                fDTO.getTitle(),
+                fDTO.getDescription(),
+                fDTO.getStatus());
+
+        Course f = courseRepository.save(fDAO);
+        return new ResponseEntity<>(f, HttpStatus.CREATED);
     }
 
     @GetMapping("/course")
