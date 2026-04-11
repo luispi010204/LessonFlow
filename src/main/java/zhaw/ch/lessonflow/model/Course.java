@@ -1,21 +1,31 @@
 package zhaw.ch.lessonflow.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Data
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+
 @NoArgsConstructor
-@AllArgsConstructor
+@RequiredArgsConstructor
+@Getter
 @Document("courses")
 public class Course {
 
     @Id
     private String id;
+
+    @NonNull
     private String tutorUserId;
+
+    @NonNull
     private String title;
+
+    @NonNull
     private String description;
+
+    @NonNull
     private CourseStatus status;
 }

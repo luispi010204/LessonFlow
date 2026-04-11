@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Quiz;
+import zhaw.ch.lessonflow.model.QuizCreateDTO;
 import zhaw.ch.lessonflow.repository.QuizRepository;
 import zhaw.ch.lessonflow.services.LessonService;
 
@@ -23,12 +24,18 @@ public class QuizController {
     LessonService lessonService;
 
     @PostMapping("/quiz")
-    public ResponseEntity<Quiz> createQuiz(@RequestBody Quiz quiz) {
-        if (!lessonService.lessonExists(quiz.getLessonId())) {
+    public ResponseEntity<Quiz> createQuiz(@RequestBody QuizCreateDTO fDTO) {
+
+        if (!lessonService.lessonExists(fDTO.getLessonId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        Quiz savedQuiz = quizRepository.save(quiz);
+        Quiz fDAO = new Quiz(
+                fDTO.getLessonId(),
+                fDTO.getPassPercent(),
+                fDTO.getQuestions());
+
+        Quiz savedQuiz = quizRepository.save(fDAO);
         return new ResponseEntity<>(savedQuiz, HttpStatus.CREATED);
     }
 
