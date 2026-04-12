@@ -29,6 +29,10 @@ public class QuizController {
         if (!lessonService.lessonExists(fDTO.getLessonId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
+        if (quizRepository.findByLessonId(fDTO.getLessonId()).isPresent()) {
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
 
         Quiz fDAO = new Quiz(
                 fDTO.getLessonId(),
