@@ -43,7 +43,7 @@ public class EnrollmentController {
                 fDTO.getLearnerUserId(),
                 fDTO.getStatus());
 
-        Enrollment savedEnrollment = enrollmentRepository.save(fDAO);
+        Enrollment savedEnrollment = enrollmentService.createEnrollmentWithProgress(fDAO);
         return new ResponseEntity<>(savedEnrollment, HttpStatus.CREATED);
     }
 
