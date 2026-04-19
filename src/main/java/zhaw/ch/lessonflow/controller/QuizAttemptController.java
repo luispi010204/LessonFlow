@@ -9,7 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.QuizAttempt;
+import zhaw.ch.lessonflow.model.QuizAttemptCreateDTO;
 import zhaw.ch.lessonflow.repository.QuizAttemptRepository;
+import zhaw.ch.lessonflow.services.QuizAttemptService;
 
 @RestController
 @RequestMapping("/api")
@@ -18,11 +20,15 @@ public class QuizAttemptController {
     @Autowired
     QuizAttemptRepository quizAttemptRepository;
 
+    @Autowired
+    QuizAttemptService quizAttemptService;
+
+    /*  abgelöst von attempt/submit
     @PostMapping("/attempt")
     public ResponseEntity<QuizAttempt> createQuizAttempt(@RequestBody QuizAttempt quizAttempt) {
         QuizAttempt savedAttempt = quizAttemptRepository.save(quizAttempt);
         return new ResponseEntity<>(savedAttempt, HttpStatus.CREATED);
-    }
+    }*/
 
     @GetMapping("/attempt")
     public List<QuizAttempt> getAllQuizAttempts() {
@@ -53,5 +59,16 @@ public class QuizAttemptController {
     @GetMapping("/attempt/lesson/{lessonId}")
     public List<QuizAttempt> getQuizAttemptsByLessonId(@PathVariable String lessonId) {
         return quizAttemptRepository.findByLessonId(lessonId);
+    }
+
+    @PostMapping("/attempt/submit")
+    public ResponseEntity<QuizAttempt> submitQuizAttempt(@RequestBody QuizAttemptCreateDTO fDTO) {
+        Optional<QuizAttempt> attempt = quizAttemptService.submitQuizAttempt(fDTO);
+
+        if (attempt.isPresent()) {
+            return new ResponseEntity<>(attempt.get(), HttpStatus.CREATED);
+        } else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 }

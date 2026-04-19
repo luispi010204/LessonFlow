@@ -102,4 +102,12 @@ public class LessonProgressService {
 
         return Optional.of(savedProgress);
     }
+
+    public Optional<LessonProgress> getByEnrollmentIdAndLessonId(String enrollmentId, String lessonId) {
+        return lessonProgressRepository.findByEnrollmentIdAndLessonId(enrollmentId, lessonId);
+    }
+
+    public LessonProgress save(LessonProgress progress) {
+        return lessonProgressRepository.save(progress);
+    }
 }
