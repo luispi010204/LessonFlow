@@ -8,7 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonProgress;
+import zhaw.ch.lessonflow.model.ProgressSummaryDTO;
 import zhaw.ch.lessonflow.repository.LessonProgressRepository;
 import zhaw.ch.lessonflow.services.LessonProgressService;
 
@@ -76,17 +78,41 @@ public class LessonProgressController {
         }
     }
 
-    /*  abgelöst von attempt/submit
-    @PostMapping("/progress/{id}/passed")
-    public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
-        Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
+    /*
+     * abgelöst von attempt/submit
+     * 
+     * @PostMapping("/progress/{id}/passed")
+     * public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
+     * Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
+     * 
+     * if (progress.isPresent()) {
+     * return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+     * } else {
+     * return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+     * }
+     * }
+     */
 
-        if (progress.isPresent()) {
-            return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+    @GetMapping("/enrollment/{id}/current-lesson")
+    public ResponseEntity<Lesson> getCurrentLesson(@PathVariable String id) {
+        Optional<Lesson> lesson = lessonProgressService.getCurrentLesson(id);
+
+        if (lesson.isPresent()) {
+            return new ResponseEntity<>(lesson.get(), HttpStatus.OK);
         } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
-        */
+
+    @GetMapping("/enrollment/{id}/progress-summary")
+    public ResponseEntity<ProgressSummaryDTO> getProgressSummary(@PathVariable String id) {
+        Optional<ProgressSummaryDTO> summary = lessonProgressService.getProgressSummary(id);
+
+        if (summary.isPresent()) {
+            return new ResponseEntity<>(summary.get(), HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
 
 }

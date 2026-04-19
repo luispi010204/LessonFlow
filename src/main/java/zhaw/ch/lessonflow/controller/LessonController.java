@@ -63,6 +63,6 @@ public ResponseEntity<Lesson> createLesson(@RequestBody LessonCreateDTO fDTO) {
 
     @GetMapping("/lesson/course/{courseId}")
     public List<Lesson> getLessonsByCourseId(@PathVariable String courseId) {
-        return lessonRepository.findByCourseId(courseId);
+        return lessonRepository.findByCourseIdOrderByLessonNumberAsc(courseId);
     }
 }

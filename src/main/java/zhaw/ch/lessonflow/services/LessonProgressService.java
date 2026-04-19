@@ -1,5 +1,6 @@
 package zhaw.ch.lessonflow.services;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonProgress;
 import zhaw.ch.lessonflow.model.LessonProgressState;
+import zhaw.ch.lessonflow.model.ProgressSummaryDTO;
 import zhaw.ch.lessonflow.repository.LessonProgressRepository;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 
@@ -109,5 +111,49 @@ public class LessonProgressService {
 
     public LessonProgress save(LessonProgress progress) {
         return lessonProgressRepository.save(progress);
+    }
+
+    public Optional<Lesson> getCurrentLesson(String enrollmentId) {
+        Optional<LessonProgress> progressOpt = lessonProgressRepository
+                .findFirstByEnrollmentIdAndStateOrderByLessonIdAsc(
+                        enrollmentId,
+                        LessonProgressState.UNLOCKED);
+
+        if (progressOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LessonProgress progress = progressOpt.get();
+
+        return lessonRepository.findById(progress.getLessonId());
+    }
+
+    public Optional<ProgressSummaryDTO> getProgressSummary(String enrollmentId) {
+        List<LessonProgress> progressList = lessonProgressRepository.findByEnrollmentId(enrollmentId);
+
+        if (progressList.isEmpty()) {
+            return Optional.empty();
+        }
+
+        int totalLessons = progressList.size();
+        int passedLessons = 0;
+        String currentLessonId = null;
+
+        for (LessonProgress progress : progressList) {
+            if (progress.getState() == LessonProgressState.PASSED) {
+                passedLessons++;
+            }
+
+            if (progress.getState() == LessonProgressState.UNLOCKED && currentLessonId == null) {
+                currentLessonId = progress.getLessonId();
+            }
+        }
+
+        ProgressSummaryDTO summary = new ProgressSummaryDTO(
+                totalLessons,
+                passedLessons,
+                currentLessonId);
+
+        return Optional.of(summary);
     }
 }
