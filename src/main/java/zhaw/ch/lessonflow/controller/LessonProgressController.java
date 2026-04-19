@@ -76,6 +76,7 @@ public class LessonProgressController {
         }
     }
 
+    /*  abgelöst von attempt/submit
     @PostMapping("/progress/{id}/passed")
     public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
         Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
@@ -86,5 +87,6 @@ public class LessonProgressController {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
+        */
 
 }
