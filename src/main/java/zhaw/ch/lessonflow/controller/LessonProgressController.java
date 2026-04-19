@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.LessonProgress;
 import zhaw.ch.lessonflow.repository.LessonProgressRepository;
+import zhaw.ch.lessonflow.services.LessonProgressService;
 
 @RestController
 @RequestMapping("/api")
@@ -17,6 +18,9 @@ public class LessonProgressController {
 
     @Autowired
     LessonProgressRepository lessonProgressRepository;
+
+    @Autowired
+    LessonProgressService lessonProgressService;
 
     @PostMapping("/progress")
     public ResponseEntity<LessonProgress> createLessonProgress(@RequestBody LessonProgress lessonProgress) {
@@ -49,4 +53,38 @@ public class LessonProgressController {
     public List<LessonProgress> getLessonProgressByLessonId(@PathVariable String lessonId) {
         return lessonProgressRepository.findByLessonId(lessonId);
     }
+
+    @PostMapping("/progress/{id}/material-done")
+    public ResponseEntity<LessonProgress> markMaterialDone(@PathVariable String id) {
+        Optional<LessonProgress> progress = lessonProgressService.markMaterialDone(id);
+
+        if (progress.isPresent()) {
+            return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/progress/{id}/meeting-done")
+    public ResponseEntity<LessonProgress> confirmMeeting(@PathVariable String id) {
+        Optional<LessonProgress> progress = lessonProgressService.confirmMeeting(id);
+
+        if (progress.isPresent()) {
+            return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/progress/{id}/passed")
+    public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
+        Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
+
+        if (progress.isPresent()) {
+            return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+    }
+
 }
