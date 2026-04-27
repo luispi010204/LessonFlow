@@ -65,4 +65,19 @@ public class EnrollmentService {
 
         return savedEnrollment;
     }
+
+    public Optional<Enrollment> getEnrollmentById(String enrollmentId) {
+    return enrollmentRepository.findById(enrollmentId);
+}
+
+public boolean enrollmentBelongsToLearner(String enrollmentId, String learnerUserId) {
+    Optional<Enrollment> enrollmentData = enrollmentRepository.findById(enrollmentId);
+
+    if (enrollmentData.isEmpty()) {
+        return false;
+    }
+
+    Enrollment enrollment = enrollmentData.get();
+    return enrollment.getLearnerUserId().equals(learnerUserId);
+}
 }

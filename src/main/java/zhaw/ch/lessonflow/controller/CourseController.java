@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import zhaw.ch.lessonflow.model.Course;
 import zhaw.ch.lessonflow.model.CourseCreateDTO;
 import zhaw.ch.lessonflow.repository.CourseRepository;
+import zhaw.ch.lessonflow.services.UserService;
 
 @RestController
 @RequestMapping("/api")
@@ -19,18 +20,26 @@ public class CourseController {
     @Autowired
     CourseRepository courseRepository;
 
+    @Autowired
+    UserService userService;
+
     @PostMapping("/course")
-    public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
+public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
 
-        Course fDAO = new Course(
-                fDTO.getTutorUserId(),
-                fDTO.getTitle(),
-                fDTO.getDescription(),
-                fDTO.getStatus());
-
-        Course f = courseRepository.save(fDAO);
-        return new ResponseEntity<>(f, HttpStatus.CREATED);
+    if (!userService.userHasRole("tutor")) {
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
+
+    Course fDAO = new Course(
+            userService.getCurrentUserId(),
+            fDTO.getTitle(),
+            fDTO.getDescription(),
+            fDTO.getStatus()
+    );
+
+    Course savedCourse = courseRepository.save(fDAO);
+    return new ResponseEntity<>(savedCourse, HttpStatus.CREATED);
+}
 
     @GetMapping("/course")
     public List<Course> getAllCourses() {

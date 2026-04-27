@@ -13,6 +13,7 @@ import zhaw.ch.lessonflow.model.EnrollmentCreateDTO;
 import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.EnrollmentService;
+import zhaw.ch.lessonflow.services.UserService;
 
 @RestController
 @RequestMapping("/api")
@@ -27,21 +28,30 @@ public class EnrollmentController {
     @Autowired
     EnrollmentService enrollmentService;
 
+    @Autowired
+    UserService userService;
+
     @PostMapping("/enrollment")
     public ResponseEntity<Enrollment> createEnrollment(@RequestBody EnrollmentCreateDTO fDTO) {
+
+        if (!userService.userHasRole("learner")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
 
         if (!courseService.courseExists(fDTO.getCourseId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        if (enrollmentService.isAlreadyEnrolled(fDTO.getCourseId(), fDTO.getLearnerUserId())) {
+        String currentUserId = userService.getCurrentUserId();
+
+        if (enrollmentService.isAlreadyEnrolled(fDTO.getCourseId(), currentUserId)) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
         Enrollment fDAO = new Enrollment(
                 fDTO.getCourseId(),
-                fDTO.getLearnerUserId(),
-                fDTO.getStatus());
+                currentUserId,
+                "ENROLLED");
 
         Enrollment savedEnrollment = enrollmentService.createEnrollmentWithProgress(fDAO);
         return new ResponseEntity<>(savedEnrollment, HttpStatus.CREATED);
