@@ -12,6 +12,7 @@ import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonCreateDTO;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 import zhaw.ch.lessonflow.services.CourseService;
+import zhaw.ch.lessonflow.services.UserService;
 
 @RestController
 @RequestMapping("/api")
@@ -23,27 +24,40 @@ public class LessonController {
     @Autowired
     CourseService courseService;
 
+    @Autowired
+    UserService userService;
+
     @PostMapping("/lesson")
-public ResponseEntity<Lesson> createLesson(@RequestBody LessonCreateDTO fDTO) {
+    public ResponseEntity<Lesson> createLesson(@RequestBody LessonCreateDTO fDTO) {
 
-     if (!courseService.courseExists(fDTO.getCourseId())) {
-        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        if (!courseService.courseExists(fDTO.getCourseId())) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        if (!courseService.courseBelongsToTutor(fDTO.getCourseId(), userService.getCurrentUserId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        if (lessonRepository.findByCourseIdAndLessonNumber(
+                fDTO.getCourseId(), fDTO.getLessonNumber()).isPresent()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        Lesson fDAO = new Lesson(
+                fDTO.getCourseId(),
+                fDTO.getLessonNumber(),
+                fDTO.getTitle(),
+                fDTO.getMaterial(),
+                fDTO.getMeetingLink()
+        );
+
+        Lesson savedLesson = lessonRepository.save(fDAO);
+        return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
     }
-    if (lessonRepository.findByCourseIdAndLessonNumber(
-        fDTO.getCourseId(), fDTO.getLessonNumber()).isPresent()) {
-    return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-}
-    Lesson fDAO = new Lesson(
-            fDTO.getCourseId(),
-            fDTO.getLessonNumber(),
-            fDTO.getTitle(),
-            fDTO.getMaterial(),
-            fDTO.getMeetingLink()
-    );
-
-    Lesson savedLesson = lessonRepository.save(fDAO);
-    return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
-}
 
     @GetMapping("/lesson")
     public List<Lesson> getAllLessons() {
