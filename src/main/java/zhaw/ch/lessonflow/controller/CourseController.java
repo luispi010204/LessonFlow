@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import zhaw.ch.lessonflow.model.Course;
 import zhaw.ch.lessonflow.model.CourseCreateDTO;
+import zhaw.ch.lessonflow.model.CourseStatus;
 import zhaw.ch.lessonflow.repository.CourseRepository;
 import zhaw.ch.lessonflow.services.UserService;
 
@@ -34,7 +35,7 @@ public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
             userService.getCurrentUserId(),
             fDTO.getTitle(),
             fDTO.getDescription(),
-            fDTO.getStatus()
+            CourseStatus.DRAFT
     );
 
     Course savedCourse = courseRepository.save(fDAO);

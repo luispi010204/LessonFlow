@@ -10,5 +10,5 @@ public class CourseCreateDTO {
     private String tutorUserId;
     private String title;
     private String description;
-    private CourseStatus status;
+    // private CourseStatus status;
 }

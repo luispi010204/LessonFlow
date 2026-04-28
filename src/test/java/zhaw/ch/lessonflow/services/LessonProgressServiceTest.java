@@ -15,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonProgress;
 import zhaw.ch.lessonflow.model.LessonProgressState;
 import zhaw.ch.lessonflow.repository.LessonProgressRepository;
