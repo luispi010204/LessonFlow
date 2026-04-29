@@ -73,6 +73,7 @@ public class EnrollmentController {
         }
     }
 
+    /* eigentlich abgelöst von /enrollment/me  */
     @GetMapping("/enrollment/learner/{learnerUserId}")
     public List<Enrollment> getEnrollmentsByLearner(@PathVariable String learnerUserId) {
         return enrollmentRepository.findByLearnerUserId(learnerUserId);
@@ -81,5 +82,20 @@ public class EnrollmentController {
     @GetMapping("/enrollment/course/{courseId}")
     public List<Enrollment> getEnrollmentsByCourse(@PathVariable String courseId) {
         return enrollmentRepository.findByCourseId(courseId);
+    }
+
+    /* Get enrollments for the current Auth0 user */
+    @GetMapping("/enrollment/me")
+    public ResponseEntity<List<Enrollment>> getMyEnrollments() {
+
+        if (!userService.userHasRole("learner")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        String currentUserId = userService.getCurrentUserId();
+
+        List<Enrollment> enrollments = enrollmentRepository.findByLearnerUserId(currentUserId);
+
+        return new ResponseEntity<>(enrollments, HttpStatus.OK);
     }
 }
