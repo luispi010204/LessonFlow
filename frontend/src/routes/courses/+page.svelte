@@ -4,12 +4,15 @@
 	let user = data.user;
 	let isAuthenticated = data.isAuthenticated;
 	let isLearner = isAuthenticated && user.user_roles && user.user_roles.includes('learner');
+
+	let courses = data.courses || [];
+	let error = data.error;
 </script>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 	<div>
 		<h1 class="mb-1">Courses</h1>
-		<p class="text-muted mb-0">Browse available courses and enroll as a learner.</p>
+		<p class="text-muted mb-0">Browse available courses and open course details.</p>
 	</div>
 </div>
 
@@ -24,30 +27,48 @@
 	</div>
 	<a href="/tutor" class="btn btn-primary">Go to Tutor Dashboard</a>
 {:else}
-	<div class="card shadow-sm mb-3">
-		<div class="card-body">
-			<h5 class="card-title">Available Courses</h5>
-			<p class="card-text">
-				This page will display all available courses from the backend.
-			</p>
-			<p class="text-muted mb-0">
-				In the next frontend issue, this page will load real course data and provide enrollment actions.
-			</p>
+	{#if error}
+		<div class="alert alert-danger">
+			{error}
 		</div>
-	</div>
+	{/if}
 
-	<div class="row g-3">
-		<div class="col-md-6">
-			<div class="card h-100 border-dashed">
-				<div class="card-body">
-					<h5 class="card-title">Example Course Card</h5>
-					<p class="card-text">
-						Course title, description and status will be shown here.
-					</p>
-					<button class="btn btn-outline-primary" disabled>View Details</button>
-					<button class="btn btn-primary" disabled>Enroll</button>
-				</div>
+	{#if courses.length === 0}
+		<div class="card shadow-sm">
+			<div class="card-body">
+				<h5 class="card-title">No courses available</h5>
+				<p class="card-text text-muted mb-0">
+					There are currently no courses to display.
+				</p>
 			</div>
 		</div>
-	</div>
+	{:else}
+		<div class="row g-3">
+			{#each courses as course}
+				<div class="col-md-6 col-lg-4">
+					<div class="card shadow-sm h-100">
+						<div class="card-body d-flex flex-column">
+							<div class="d-flex justify-content-between align-items-start mb-2">
+								<h5 class="card-title mb-0">{course.title}</h5>
+
+								{#if course.status}
+									<span class="badge bg-secondary">{course.status}</span>
+								{/if}
+							</div>
+
+							<p class="card-text text-muted">
+								{course.description}
+							</p>
+
+							<div class="mt-auto">
+								<a href={`/courses/${course.id}`} class="btn btn-primary">
+									View Details
+								</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
 {/if}
