@@ -1,5 +1,5 @@
 <script>
-	let { data } = $props();
+	let { data, form } = $props();
 
 	let course = data.course;
 	let lessons = data.lessons || [];
@@ -9,7 +9,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
 	<div>
 		<h1 class="mb-1">Course Details</h1>
-		<p class="text-muted mb-0">View course information and available lessons.</p>
+		<p class="text-muted mb-0">
+			View course information and available lessons.
+		</p>
 	</div>
 
 	<a href="/courses" class="btn btn-outline-secondary">Back to Courses</a>
@@ -37,7 +39,8 @@
 			</p>
 
 			<p class="mb-0">
-				<strong>Course ID:</strong> {course.id}
+				<strong>Course ID:</strong>
+				{course.id}
 			</p>
 		</div>
 	</div>
@@ -56,7 +59,9 @@
 				<div class="list-group">
 					{#each lessons as lesson}
 						<div class="list-group-item">
-							<div class="d-flex justify-content-between align-items-start">
+							<div
+								class="d-flex justify-content-between align-items-start"
+							>
 								<div>
 									<h6 class="mb-1">
 										Lesson {lesson.lessonNumber}: {lesson.title}
@@ -68,7 +73,8 @@
 
 									{#if lesson.meetingLink}
 										<small>
-											<strong>Meeting:</strong> {lesson.meetingLink}
+											<strong>Meeting:</strong>
+											{lesson.meetingLink}
 										</small>
 									{/if}
 								</div>
@@ -84,20 +90,26 @@
 		<div class="card-body">
 			<h5 class="card-title">Enrollment</h5>
 			<p class="card-text text-muted">
-				In the learner flow issue, this button will create an enrollment for this course.
+				Enroll in this course to start your learning flow.
 			</p>
 
-			<button class="btn btn-primary" disabled>
-				Enroll in Course
-			</button>
+			{#if form?.error}
+				<div class="alert alert-danger">
+					{form.error}
+				</div>
+			{/if}
+
+			<form method="POST" action="?/enroll">
+				<button class="btn btn-primary" type="submit">
+					Enroll in Course
+				</button>
+			</form>
 		</div>
 	</div>
 {:else if !error}
 	<div class="card shadow-sm">
 		<div class="card-body">
-			<p class="text-muted mb-0">
-				Course not found.
-			</p>
+			<p class="text-muted mb-0">Course not found.</p>
 		</div>
 	</div>
 {/if}

@@ -114,18 +114,18 @@ public class LessonProgressService {
     }
 
     public Optional<Lesson> getCurrentLesson(String enrollmentId) {
-        Optional<LessonProgress> progressOpt = lessonProgressRepository
-                .findFirstByEnrollmentIdAndStateOrderByLessonIdAsc(
-                        enrollmentId,
-                        LessonProgressState.UNLOCKED);
+        List<LessonProgress> progressList = lessonProgressRepository.findByEnrollmentId(enrollmentId);
 
-        if (progressOpt.isEmpty()) {
-            return Optional.empty();
+        for (LessonProgress progress : progressList) {
+            if (progress.getState() == LessonProgressState.UNLOCKED
+                    || progress.getState() == LessonProgressState.MATERIAL_DONE
+                    || progress.getState() == LessonProgressState.MEETING_DONE) {
+
+                return lessonRepository.findById(progress.getLessonId());
+            }
         }
 
-        LessonProgress progress = progressOpt.get();
-
-        return lessonRepository.findById(progress.getLessonId());
+        return Optional.empty();
     }
 
     public Optional<ProgressSummaryDTO> getProgressSummary(String enrollmentId) {
