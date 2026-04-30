@@ -25,26 +25,40 @@ public class CourseController {
     UserService userService;
 
     @PostMapping("/course")
-public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
+    public ResponseEntity<Course> createCourse(@RequestBody CourseCreateDTO fDTO) {
 
-    if (!userService.userHasRole("tutor")) {
-        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        Course fDAO = new Course(
+                userService.getCurrentUserId(),
+                fDTO.getTitle(),
+                fDTO.getDescription(),
+                CourseStatus.DRAFT
+        );
+
+        Course savedCourse = courseRepository.save(fDAO);
+        return new ResponseEntity<>(savedCourse, HttpStatus.CREATED);
     }
-
-    Course fDAO = new Course(
-            userService.getCurrentUserId(),
-            fDTO.getTitle(),
-            fDTO.getDescription(),
-            CourseStatus.DRAFT
-    );
-
-    Course savedCourse = courseRepository.save(fDAO);
-    return new ResponseEntity<>(savedCourse, HttpStatus.CREATED);
-}
 
     @GetMapping("/course")
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
+    }
+
+    @GetMapping("/course/me")
+    public ResponseEntity<List<Course>> getMyCourses() {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        String currentUserId = userService.getCurrentUserId();
+
+        List<Course> courses = courseRepository.findByTutorUserId(currentUserId);
+
+        return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 
     @GetMapping("/course/{id}")
