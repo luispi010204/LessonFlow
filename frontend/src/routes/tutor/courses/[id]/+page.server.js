@@ -13,6 +13,8 @@ export async function load({ params, locals }) {
 			course: null,
 			lessons: [],
 			lessonCards: [],
+			enrollments: [],
+			enrollmentProgressCards: [],
 			error: 'Authentication required'
 		};
 	}
@@ -34,7 +36,16 @@ export async function load({ params, locals }) {
 			}
 		});
 
+		const enrollmentsResponse = await axios({
+			method: 'get',
+			url: `${API_BASE_URL}/api/enrollment/course/${courseId}`,
+			headers: {
+				Authorization: 'Bearer ' + jwt_token
+			}
+		});
+
 		const lessons = lessonsResponse.data || [];
+		const enrollments = enrollmentsResponse.data || [];
 
 		const lessonCards = await Promise.all(
 			lessons.map(async (lesson) => {
@@ -60,11 +71,55 @@ export async function load({ params, locals }) {
 			})
 		);
 
+		const enrollmentProgressCards = await Promise.all(
+			enrollments.map(async (enrollment) => {
+				try {
+					const progressResponse = await axios({
+						method: 'get',
+						url: `${API_BASE_URL}/api/progress/enrollment/${enrollment.id}`,
+						headers: {
+							Authorization: 'Bearer ' + jwt_token
+						}
+					});
+
+					const progressList = progressResponse.data || [];
+
+					const progressCards = progressList.map((progress) => {
+						const lesson = lessons.find((item) => item.id === progress.lessonId);
+
+						return {
+							progress,
+							lesson
+						};
+					});
+
+					return {
+						enrollment,
+						progressCards,
+						error: null
+					};
+				} catch (error) {
+					console.log(
+						'Error loading progress for enrollment:',
+						error?.response?.data || error
+					);
+
+					return {
+						enrollment,
+						progressCards: [],
+						error: 'Could not load progress for this enrollment'
+					};
+				}
+			})
+		);
+
 		return {
 			courseId,
 			course: courseResponse.data,
 			lessons,
 			lessonCards,
+			enrollments,
+			enrollmentProgressCards,
 			error: null
 		};
 	} catch (error) {
@@ -75,6 +130,8 @@ export async function load({ params, locals }) {
 			course: null,
 			lessons: [],
 			lessonCards: [],
+			enrollments: [],
+			enrollmentProgressCards: [],
 			error: 'Could not load course details'
 		};
 	}
@@ -212,6 +269,45 @@ export const actions = {
 
 			return {
 				error: 'Could not create quiz. A quiz may already exist for this lesson.'
+			};
+		}
+	},
+
+	confirmMeeting: async ({ request, locals }) => {
+		const jwt_token = locals.jwt_token;
+
+		if (!jwt_token) {
+			return {
+				error: 'Authentication required'
+			};
+		}
+
+		const data = await request.formData();
+		const progressId = data.get('progressId');
+
+		if (!progressId) {
+			return {
+				error: 'Progress ID is missing'
+			};
+		}
+
+		try {
+			await axios({
+				method: 'post',
+				url: `${API_BASE_URL}/api/progress/${progressId}/meeting-done`,
+				headers: {
+					Authorization: 'Bearer ' + jwt_token
+				}
+			});
+
+			return {
+				success: 'Meeting confirmed successfully'
+			};
+		} catch (error) {
+			console.log('Error confirming meeting:', error?.response?.data || error);
+
+			return {
+				error: 'Could not confirm meeting'
 			};
 		}
 	}

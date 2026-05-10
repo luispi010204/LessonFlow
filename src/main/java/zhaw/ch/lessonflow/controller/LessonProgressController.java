@@ -47,23 +47,24 @@ public class LessonProgressController {
      * Direct creation through the API should not be allowed anymore.
      */
     /*
-    @PostMapping("/progress")
-    public ResponseEntity<LessonProgress> createLessonProgress(@RequestBody LessonProgress lessonProgress) {
-        LessonProgress savedProgress = lessonProgressRepository.save(lessonProgress);
-        return new ResponseEntity<>(savedProgress, HttpStatus.CREATED);
-    }
-    */
+     * @PostMapping("/progress")
+     * public ResponseEntity<LessonProgress> createLessonProgress(@RequestBody
+     * LessonProgress lessonProgress) {
+     * LessonProgress savedProgress = lessonProgressRepository.save(lessonProgress);
+     * return new ResponseEntity<>(savedProgress, HttpStatus.CREATED);
+     * }
+     */
 
     /*
      * Disabled:
      * Returning all progress entries would expose data across users/courses.
      */
     /*
-    @GetMapping("/progress")
-    public List<LessonProgress> getAllLessonProgress() {
-        return lessonProgressRepository.findAll();
-    }
-    */
+     * @GetMapping("/progress")
+     * public List<LessonProgress> getAllLessonProgress() {
+     * return lessonProgressRepository.findAll();
+     * }
+     */
 
     @GetMapping("/progress/{id}")
     public ResponseEntity<LessonProgress> getLessonProgressById(@PathVariable String id) {
@@ -153,7 +154,7 @@ public class LessonProgressController {
 
         LessonProgress progress = progressData.get();
 
-        if (!canLearnerModifyProgress(progress)) {
+        if (!canTutorModifyProgress(progress)) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
@@ -171,17 +172,17 @@ public class LessonProgressController {
      * Passing a lesson is now handled through POST /api/attempt/submit.
      */
     /*
-    @PostMapping("/progress/{id}/passed")
-    public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
-        Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
-
-        if (progress.isPresent()) {
-            return new ResponseEntity<>(progress.get(), HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
-    }
-    */
+     * @PostMapping("/progress/{id}/passed")
+     * public ResponseEntity<LessonProgress> markPassed(@PathVariable String id) {
+     * Optional<LessonProgress> progress = lessonProgressService.markPassed(id);
+     * 
+     * if (progress.isPresent()) {
+     * return new ResponseEntity<>(progress.get(), HttpStatus.OK);
+     * } else {
+     * return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+     * }
+     * }
+     */
 
     @GetMapping("/enrollment/{id}/current-lesson")
     public ResponseEntity<Lesson> getCurrentLesson(@PathVariable String id) {
@@ -255,7 +256,24 @@ public class LessonProgressController {
 
         return enrollmentService.enrollmentBelongsToLearner(
                 progress.getEnrollmentId(),
-                userService.getCurrentUserId()
-        );
+                userService.getCurrentUserId());
+    }
+
+    private boolean canTutorModifyProgress(LessonProgress progress) {
+        if (!userService.userHasRole("tutor")) {
+            return false;
+        }
+
+        Optional<Lesson> lessonData = lessonService.getLessonById(progress.getLessonId());
+
+        if (lessonData.isEmpty()) {
+            return false;
+        }
+
+        Lesson lesson = lessonData.get();
+
+        return courseService.courseBelongsToTutor(
+                lesson.getCourseId(),
+                userService.getCurrentUserId());
     }
 }
