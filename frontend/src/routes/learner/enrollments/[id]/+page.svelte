@@ -62,11 +62,18 @@
 						</h4>
 
 						<p class="text-muted mb-3">
-							Read the lesson material below. After finishing it, mark the material as done.
+							Read the structured lesson material below. After finishing it, mark the material as done.
 						</p>
 
-						<div class="border rounded p-3 bg-light mb-3">
-							{currentLesson.material}
+						<div class="lesson-material-card mb-3">
+							<div class="d-flex justify-content-between align-items-center mb-3">
+								<h5 class="mb-0">Lesson Material</h5>
+								<span class="badge bg-light text-dark border">Study Content</span>
+							</div>
+
+							<div class="lesson-material-content">
+								{currentLesson.material}
+							</div>
 						</div>
 
 						{#if state === 'UNLOCKED'}
@@ -262,3 +269,24 @@
 		</div>
 	{/if}
 {/if}
+
+<style>
+	.lesson-material-card {
+		border: 1px solid #dee2e6;
+		border-radius: 0.75rem;
+		background: #f8f9fa;
+		padding: 1rem;
+	}
+
+	.lesson-material-content {
+		white-space: pre-wrap;
+		font-size: 1rem;
+		line-height: 1.65;
+		background: #ffffff;
+		border: 1px solid #e9ecef;
+		border-radius: 0.5rem;
+		padding: 1rem;
+		max-height: 520px;
+		overflow-y: auto;
+	}
+</style>

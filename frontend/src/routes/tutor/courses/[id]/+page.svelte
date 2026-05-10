@@ -36,6 +36,20 @@
 
 		return "bg-secondary";
 	}
+
+	function getMaterialPreview(material) {
+		if (!material) {
+			return "";
+		}
+
+		const maxLength = 450;
+
+		if (material.length <= maxLength) {
+			return material;
+		}
+
+		return material.slice(0, maxLength) + "...";
+	}
 </script>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -127,10 +141,27 @@
 							<textarea
 								id="material"
 								name="material"
-								class="form-control"
-								rows="5"
+								class="form-control lesson-material-textarea"
+								rows="10"
+								placeholder={`## Introduction
+Shortly explain what this lesson is about.
+
+## Key Concepts
+- Concept 1
+- Concept 2
+- Concept 3
+
+## Example
+Add a short example, code snippet or explanation.
+
+## Task
+Describe what the learner should understand or try out.`}
 								required
 							></textarea>
+							<div class="form-text">
+								Use short sections, bullet points and examples.
+								Line breaks will be preserved for the learner.
+							</div>
 						</div>
 
 						<div class="mb-3">
@@ -527,16 +558,30 @@
 									<div
 										class="d-flex justify-content-between align-items-start gap-3"
 									>
-										<div>
+										<div class="w-100">
 											<h6 class="mb-1">
 												Lesson {card.lesson
 													.lessonNumber}: {card.lesson
 													.title}
 											</h6>
 
-											<p class="text-muted mb-2">
-												{card.lesson.material}
-											</p>
+											<div
+												class="border rounded p-3 bg-light mb-2 lesson-material-preview"
+											>
+												{getMaterialPreview(
+													card.lesson.material,
+												)}
+											</div>
+
+											{#if card.lesson.material && card.lesson.material.length > 450}
+												<small
+													class="text-muted d-block mb-2"
+												>
+													Material preview shortened.
+													Learners see the full text
+													in the learning flow.
+												</small>
+											{/if}
 
 											{#if card.lesson.meetingLink}
 												<p class="mb-1">
@@ -812,3 +857,17 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.lesson-material-textarea {
+		min-height: 260px;
+	}
+
+	.lesson-material-preview {
+		white-space: pre-wrap;
+		font-size: 0.95rem;
+		line-height: 1.5;
+		max-height: 220px;
+		overflow-y: auto;
+	}
+</style>
