@@ -11,5 +11,5 @@ public class QuizCreateDTO {
 
     private String lessonId;
     private int passPercent;
-    private List<String> questions;
+    private List<QuizQuestion> questions;
 }

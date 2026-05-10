@@ -26,5 +26,5 @@ public class Quiz {
     private int passPercent;
 
     @NonNull
-    private List<String> questions;
+    private List<QuizQuestion> questions;
 }

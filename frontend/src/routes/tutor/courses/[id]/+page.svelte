@@ -38,8 +38,6 @@
 	}
 </script>
 
-Ersetze `frontend/src/routes/tutor/courses/[id]/+page.svelte` komplett damit:
-```svelte
 <div class="d-flex justify-content-between align-items-center mb-4">
 	<div>
 		<h1 class="mb-1">Manage Course</h1>
@@ -157,7 +155,7 @@ Ersetze `frontend/src/routes/tutor/courses/[id]/+page.svelte` komplett damit:
 
 			<div class="card shadow-sm">
 				<div class="card-header">
-					<h5 class="mb-0">Create Quiz</h5>
+					<h5 class="mb-0">Create Single-Choice Quiz</h5>
 				</div>
 
 				<div class="card-body">
@@ -167,8 +165,9 @@ Ersetze `frontend/src/routes/tutor/courses/[id]/+page.svelte` komplett damit:
 						</p>
 					{:else}
 						<p class="text-muted">
-							Create a manual quiz for one of the lessons. AI quiz
-							generation will be added later.
+							Create a single-choice quiz for one of the lessons.
+							Learners will select one answer per question and the
+							backend will calculate the score automatically.
 						</p>
 
 						<form method="POST" action="?/createQuiz">
@@ -207,21 +206,294 @@ Ersetze `frontend/src/routes/tutor/courses/[id]/+page.svelte` komplett damit:
 								/>
 							</div>
 
-							<div class="mb-3">
-								<label class="form-label" for="questions"
-									>Questions</label
-								>
-								<textarea
-									id="questions"
-									name="questions"
-									class="form-control"
-									rows="5"
-									placeholder="Write one question per line"
-									required
-								></textarea>
-								<div class="form-text">
-									Each line will be saved as one quiz
-									question.
+							<div class="border rounded p-3 mb-3">
+								<h6 class="mb-3">Question 1</h6>
+
+								<div class="mb-3">
+									<label class="form-label" for="question1"
+										>Question Text</label
+									>
+									<input
+										id="question1"
+										name="question1"
+										class="form-control"
+										type="text"
+										required
+									/>
+								</div>
+
+								<div class="row g-2">
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question1OptionA"
+											>Option A</label
+										>
+										<input
+											id="question1OptionA"
+											name="question1OptionA"
+											class="form-control"
+											type="text"
+											required
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question1OptionB"
+											>Option B</label
+										>
+										<input
+											id="question1OptionB"
+											name="question1OptionB"
+											class="form-control"
+											type="text"
+											required
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question1OptionC"
+											>Option C</label
+										>
+										<input
+											id="question1OptionC"
+											name="question1OptionC"
+											class="form-control"
+											type="text"
+											required
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question1OptionD"
+											>Option D</label
+										>
+										<input
+											id="question1OptionD"
+											name="question1OptionD"
+											class="form-control"
+											type="text"
+											required
+										/>
+									</div>
+								</div>
+
+								<div class="mt-3">
+									<label
+										class="form-label"
+										for="question1CorrectOptionIndex"
+										>Correct Answer</label
+									>
+									<select
+										id="question1CorrectOptionIndex"
+										name="question1CorrectOptionIndex"
+										class="form-select"
+										required
+									>
+										<option value=""
+											>Select correct answer</option
+										>
+										<option value="0">Option A</option>
+										<option value="1">Option B</option>
+										<option value="2">Option C</option>
+										<option value="3">Option D</option>
+									</select>
+								</div>
+							</div>
+
+							<div class="border rounded p-3 mb-3">
+								<h6 class="mb-3">Question 2 optional</h6>
+
+								<div class="mb-3">
+									<label class="form-label" for="question2"
+										>Question Text</label
+									>
+									<input
+										id="question2"
+										name="question2"
+										class="form-control"
+										type="text"
+									/>
+								</div>
+
+								<div class="row g-2">
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question2OptionA"
+											>Option A</label
+										>
+										<input
+											id="question2OptionA"
+											name="question2OptionA"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question2OptionB"
+											>Option B</label
+										>
+										<input
+											id="question2OptionB"
+											name="question2OptionB"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question2OptionC"
+											>Option C</label
+										>
+										<input
+											id="question2OptionC"
+											name="question2OptionC"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question2OptionD"
+											>Option D</label
+										>
+										<input
+											id="question2OptionD"
+											name="question2OptionD"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+								</div>
+
+								<div class="mt-3">
+									<label
+										class="form-label"
+										for="question2CorrectOptionIndex"
+										>Correct Answer</label
+									>
+									<select
+										id="question2CorrectOptionIndex"
+										name="question2CorrectOptionIndex"
+										class="form-select"
+									>
+										<option value=""
+											>Select correct answer</option
+										>
+										<option value="0">Option A</option>
+										<option value="1">Option B</option>
+										<option value="2">Option C</option>
+										<option value="3">Option D</option>
+									</select>
+								</div>
+							</div>
+
+							<div class="border rounded p-3 mb-3">
+								<h6 class="mb-3">Question 3 optional</h6>
+
+								<div class="mb-3">
+									<label class="form-label" for="question3"
+										>Question Text</label
+									>
+									<input
+										id="question3"
+										name="question3"
+										class="form-control"
+										type="text"
+									/>
+								</div>
+
+								<div class="row g-2">
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question3OptionA"
+											>Option A</label
+										>
+										<input
+											id="question3OptionA"
+											name="question3OptionA"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question3OptionB"
+											>Option B</label
+										>
+										<input
+											id="question3OptionB"
+											name="question3OptionB"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question3OptionC"
+											>Option C</label
+										>
+										<input
+											id="question3OptionC"
+											name="question3OptionC"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+
+									<div class="col-md-6">
+										<label
+											class="form-label"
+											for="question3OptionD"
+											>Option D</label
+										>
+										<input
+											id="question3OptionD"
+											name="question3OptionD"
+											class="form-control"
+											type="text"
+										/>
+									</div>
+								</div>
+
+								<div class="mt-3">
+									<label
+										class="form-label"
+										for="question3CorrectOptionIndex"
+										>Correct Answer</label
+									>
+									<select
+										id="question3CorrectOptionIndex"
+										name="question3CorrectOptionIndex"
+										class="form-select"
+									>
+										<option value=""
+											>Select correct answer</option
+										>
+										<option value="0">Option A</option>
+										<option value="1">Option B</option>
+										<option value="2">Option C</option>
+										<option value="3">Option D</option>
+									</select>
 								</div>
 							</div>
 
