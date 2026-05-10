@@ -26,7 +26,7 @@ nodaemon=true
 user=root
 
 [program:backend]
-command=java -jar /usr/src/app/target/lessonflow-0.0.1-SNAPSHOT.jar
+command=java -jar /usr/src/app/target/lessonflow-0.0.1-SNAPSHOT.jar --server.port=8081
 directory=/usr/src/app
 autostart=true
 autorestart=true
@@ -46,7 +46,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 EOF
 
-EXPOSE 3000 8080
+EXPOSE 3000 8080 8081
 
 ENV NODE_ENV=production
 
