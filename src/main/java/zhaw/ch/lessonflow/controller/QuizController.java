@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizCreateDTO;
+import zhaw.ch.lessonflow.model.QuizQuestion;
 import zhaw.ch.lessonflow.repository.QuizRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.LessonService;
@@ -42,6 +43,14 @@ public class QuizController {
         Optional<Lesson> lessonData = lessonService.getLessonById(fDTO.getLessonId());
 
         if (lessonData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        if (fDTO.getPassPercent() < 1 || fDTO.getPassPercent() > 100) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isValidQuizQuestions(fDTO.getQuestions())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
@@ -89,5 +98,34 @@ public class QuizController {
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    private boolean isValidQuizQuestions(List<QuizQuestion> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return false;
+        }
+
+        for (QuizQuestion question : questions) {
+            if (question.getQuestionText() == null || question.getQuestionText().isBlank()) {
+                return false;
+            }
+
+            if (question.getOptions() == null || question.getOptions().size() < 2) {
+                return false;
+            }
+
+            for (String option : question.getOptions()) {
+                if (option == null || option.isBlank()) {
+                    return false;
+                }
+            }
+
+            if (question.getCorrectOptionIndex() < 0
+                    || question.getCorrectOptionIndex() >= question.getOptions().size()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

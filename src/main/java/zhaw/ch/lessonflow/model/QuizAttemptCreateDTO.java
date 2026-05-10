@@ -1,5 +1,7 @@
 package zhaw.ch.lessonflow.model;
 
+import java.util.List;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -10,5 +12,5 @@ public class QuizAttemptCreateDTO {
     private String quizId;
     private String enrollmentId;
     private String lessonId;
-    private double scorePercent;
+    private List<Integer> selectedOptionIndexes;
 }

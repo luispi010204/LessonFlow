@@ -24,6 +24,7 @@ import zhaw.ch.lessonflow.model.LessonProgressState;
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizAttempt;
 import zhaw.ch.lessonflow.model.QuizAttemptCreateDTO;
+import zhaw.ch.lessonflow.model.QuizQuestion;
 import zhaw.ch.lessonflow.repository.QuizAttemptRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,12 +52,24 @@ public class QuizAttemptServiceTest {
         ReflectionTestUtils.setField(dto, "quizId", "quiz-1");
         ReflectionTestUtils.setField(dto, "enrollmentId", "enrollment-1");
         ReflectionTestUtils.setField(dto, "lessonId", "lesson-1");
-        ReflectionTestUtils.setField(dto, "scorePercent", 80.0);
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(1, 0));
+
+        QuizQuestion question1 = new QuizQuestion(
+                "Which keyword should be used for a value that should not be reassigned?",
+                List.of("let", "const", "var", "function"),
+                1
+        );
+
+        QuizQuestion question2 = new QuizQuestion(
+                "What data type is used for true or false values?",
+                List.of("String", "Boolean", "Number", "Array"),
+                1
+        );
 
         quiz = new Quiz(
                 "lesson-1",
                 70,
-                List.of("Question 1", "Question 2")
+                List.of(question1, question2)
         );
         ReflectionTestUtils.setField(quiz, "id", "quiz-1");
 
@@ -117,8 +130,42 @@ public class QuizAttemptServiceTest {
     }
 
     @Test
+    void submitQuizAttemptReturnsEmptyWhenNotAllQuestionsAreAnswered() {
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(1));
+
+        when(quizService.getQuizById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonProgressService.getByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
+
+        Optional<QuizAttempt> result = quizAttemptService.submitQuizAttempt(dto);
+
+        assertTrue(result.isEmpty());
+
+        verify(quizAttemptRepository, never()).save(any());
+        verify(lessonProgressService, never()).save(any());
+        verify(lessonProgressService, never()).markPassed(any());
+    }
+
+    @Test
+    void submitQuizAttemptReturnsEmptyWhenSelectedOptionIsInvalid() {
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(1, 9));
+
+        when(quizService.getQuizById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonProgressService.getByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
+
+        Optional<QuizAttempt> result = quizAttemptService.submitQuizAttempt(dto);
+
+        assertTrue(result.isEmpty());
+
+        verify(quizAttemptRepository, never()).save(any());
+        verify(lessonProgressService, never()).save(any());
+        verify(lessonProgressService, never()).markPassed(any());
+    }
+
+    @Test
     void submitQuizAttemptSavesFailedAttemptAndDoesNotMarkPassed() {
-        ReflectionTestUtils.setField(dto, "scorePercent", 50.0);
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(0, 0));
 
         when(quizService.getQuizById("quiz-1")).thenReturn(Optional.of(quiz));
         when(lessonProgressService.getByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
@@ -135,7 +182,8 @@ public class QuizAttemptServiceTest {
         assertEquals("quiz-1", savedAttempt.getQuizId());
         assertEquals("enrollment-1", savedAttempt.getEnrollmentId());
         assertEquals("lesson-1", savedAttempt.getLessonId());
-        assertEquals(50.0, savedAttempt.getScorePercent());
+        assertEquals(0.0, savedAttempt.getScorePercent(), 0.001);
+        assertEquals(List.of(0, 0), savedAttempt.getSelectedOptionIndexes());
         assertFalse(savedAttempt.isPassed());
 
         assertEquals(1, progress.getQuizAttemptsCount());
@@ -147,7 +195,7 @@ public class QuizAttemptServiceTest {
 
     @Test
     void submitQuizAttemptSavesPassedAttemptAndMarksProgressPassed() {
-        ReflectionTestUtils.setField(dto, "scorePercent", 80.0);
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(1, 1));
 
         when(quizService.getQuizById("quiz-1")).thenReturn(Optional.of(quiz));
         when(lessonProgressService.getByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
@@ -164,7 +212,8 @@ public class QuizAttemptServiceTest {
         assertEquals("quiz-1", savedAttempt.getQuizId());
         assertEquals("enrollment-1", savedAttempt.getEnrollmentId());
         assertEquals("lesson-1", savedAttempt.getLessonId());
-        assertEquals(80.0, savedAttempt.getScorePercent());
+        assertEquals(100.0, savedAttempt.getScorePercent(), 0.001);
+        assertEquals(List.of(1, 1), savedAttempt.getSelectedOptionIndexes());
         assertTrue(savedAttempt.isPassed());
 
         assertEquals(1, progress.getQuizAttemptsCount());
@@ -172,5 +221,29 @@ public class QuizAttemptServiceTest {
         verify(quizAttemptRepository).save(any(QuizAttempt.class));
         verify(lessonProgressService).save(progress);
         verify(lessonProgressService).markPassed("progress-1");
+    }
+
+    @Test
+    void submitQuizAttemptCalculatesPartialScoreAndPassesWhenEnoughAnswersAreCorrect() {
+        ReflectionTestUtils.setField(dto, "selectedOptionIndexes", List.of(1, 0));
+
+        when(quizService.getQuizById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonProgressService.getByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
+        when(quizAttemptRepository.save(any(QuizAttempt.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Optional<QuizAttempt> result = quizAttemptService.submitQuizAttempt(dto);
+
+        assertTrue(result.isPresent());
+
+        QuizAttempt savedAttempt = result.get();
+
+        assertEquals(50.0, savedAttempt.getScorePercent(), 0.001);
+        assertFalse(savedAttempt.isPassed());
+
+        verify(quizAttemptRepository).save(any(QuizAttempt.class));
+        verify(lessonProgressService).save(progress);
+        verify(lessonProgressService, never()).markPassed(any());
     }
 }

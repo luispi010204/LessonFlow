@@ -23,6 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizCreateDTO;
+import zhaw.ch.lessonflow.model.QuizQuestion;
 import zhaw.ch.lessonflow.repository.QuizRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.LessonService;
@@ -49,6 +50,7 @@ public class QuizControllerTest {
     Lesson lesson;
     Quiz quiz;
     QuizCreateDTO quizCreateDTO;
+    List<QuizQuestion> questions;
 
     @BeforeEach
     void setUp() {
@@ -61,17 +63,30 @@ public class QuizControllerTest {
         );
         ReflectionTestUtils.setField(lesson, "id", "lesson-1");
 
+        questions = List.of(
+                new QuizQuestion(
+                        "Which keyword should be used for a value that should not be reassigned?",
+                        List.of("let", "const", "var", "function"),
+                        1
+                ),
+                new QuizQuestion(
+                        "What data type is used for true or false values?",
+                        List.of("String", "Boolean", "Number", "Array"),
+                        1
+                )
+        );
+
         quiz = new Quiz(
                 "lesson-1",
                 70,
-                List.of("Question 1", "Question 2")
+                questions
         );
         ReflectionTestUtils.setField(quiz, "id", "quiz-1");
 
         quizCreateDTO = new QuizCreateDTO();
         ReflectionTestUtils.setField(quizCreateDTO, "lessonId", "lesson-1");
         ReflectionTestUtils.setField(quizCreateDTO, "passPercent", 70);
-        ReflectionTestUtils.setField(quizCreateDTO, "questions", List.of("Question 1", "Question 2"));
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", questions);
     }
 
     @Test
@@ -95,6 +110,10 @@ public class QuizControllerTest {
         assertEquals("lesson-1", response.getBody().getLessonId());
         assertEquals(70, response.getBody().getPassPercent());
         assertEquals(2, response.getBody().getQuestions().size());
+        assertEquals("Which keyword should be used for a value that should not be reassigned?",
+                response.getBody().getQuestions().get(0).getQuestionText());
+        assertEquals(4, response.getBody().getQuestions().get(0).getOptions().size());
+        assertEquals(1, response.getBody().getQuestions().get(0).getCorrectOptionIndex());
 
         verify(quizRepository).save(any(Quiz.class));
     }
@@ -117,6 +136,146 @@ public class QuizControllerTest {
     void shouldNotCreateQuizWhenLessonDoesNotExist() {
         when(userService.userHasRole("tutor")).thenReturn(true);
         when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenPassPercentIsTooLow() {
+        ReflectionTestUtils.setField(quizCreateDTO, "passPercent", 0);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenPassPercentIsTooHigh() {
+        ReflectionTestUtils.setField(quizCreateDTO, "passPercent", 101);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenQuestionsAreEmpty() {
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", List.of());
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenQuestionTextIsBlank() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "",
+                        List.of("let", "const", "var", "function"),
+                        1
+                )
+        );
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", invalidQuestions);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenQuestionHasTooFewOptions() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "Which keyword should be used for constants?",
+                        List.of("const"),
+                        0
+                )
+        );
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", invalidQuestions);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenQuestionOptionIsBlank() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "Which keyword should be used for constants?",
+                        List.of("let", "", "var", "function"),
+                        1
+                )
+        );
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", invalidQuestions);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(quizRepository, never()).findByLessonId(any());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotCreateQuizWhenCorrectOptionIndexIsInvalid() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "Which keyword should be used for constants?",
+                        List.of("let", "const", "var", "function"),
+                        9
+                )
+        );
+        ReflectionTestUtils.setField(quizCreateDTO, "questions", invalidQuestions);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
 
         ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
 
@@ -166,6 +325,7 @@ public class QuizControllerTest {
         assertEquals(1, result.size());
         assertEquals("quiz-1", result.get(0).getId());
         assertEquals("lesson-1", result.get(0).getLessonId());
+        assertEquals(2, result.get(0).getQuestions().size());
     }
 
     @Test
@@ -178,6 +338,7 @@ public class QuizControllerTest {
         assertTrue(response.hasBody());
         assertEquals("quiz-1", response.getBody().getId());
         assertEquals("lesson-1", response.getBody().getLessonId());
+        assertEquals(2, response.getBody().getQuestions().size());
     }
 
     @Test
@@ -199,6 +360,7 @@ public class QuizControllerTest {
         assertTrue(response.hasBody());
         assertEquals("quiz-1", response.getBody().getId());
         assertEquals("lesson-1", response.getBody().getLessonId());
+        assertEquals(2, response.getBody().getQuestions().size());
     }
 
     @Test

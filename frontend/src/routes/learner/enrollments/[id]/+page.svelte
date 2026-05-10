@@ -129,7 +129,7 @@
 						{#if state === 'MEETING_DONE'}
 							{#if quiz}
 								<p class="text-muted">
-									Submit your quiz score. Passing the quiz will complete this lesson and unlock the next one.
+									Answer all single-choice questions. The backend will calculate your score automatically.
 								</p>
 
 								<p>
@@ -139,24 +139,50 @@
 								<form method="POST" action="?/submitQuizAttempt">
 									<input type="hidden" name="quizId" value={quiz.id} />
 									<input type="hidden" name="lessonId" value={currentLesson.id} />
+									<input type="hidden" name="questionCount" value={quiz.questions ? quiz.questions.length : 0} />
 
-									<div class="mb-3">
-										<label class="form-label" for="scorePercent">Score Percent</label>
-										<input
-											id="scorePercent"
-											name="scorePercent"
-											class="form-control"
-											type="number"
-											min="0"
-											max="100"
-											step="1"
-											required
-										/>
-									</div>
+									{#if quiz.questions && quiz.questions.length > 0}
+										{#each quiz.questions as question, questionIndex}
+											<div class="border rounded p-3 mb-3">
+												<h6 class="mb-3">
+													Question {questionIndex + 1}: {question.questionText}
+												</h6>
 
-									<button class="btn btn-success" type="submit">
-										Submit Quiz Attempt
-									</button>
+												{#if question.options && question.options.length > 0}
+													{#each question.options as option, optionIndex}
+														<div class="form-check mb-2">
+															<input
+																class="form-check-input"
+																type="radio"
+																id={`question-${questionIndex}-option-${optionIndex}`}
+																name={`selectedOptionIndex-${questionIndex}`}
+																value={optionIndex}
+																required
+															/>
+															<label
+																class="form-check-label"
+																for={`question-${questionIndex}-option-${optionIndex}`}
+															>
+																{option}
+															</label>
+														</div>
+													{/each}
+												{:else}
+													<div class="alert alert-warning mb-0">
+														This question has no answer options.
+													</div>
+												{/if}
+											</div>
+										{/each}
+
+										<button class="btn btn-success" type="submit">
+											Submit Quiz Attempt
+										</button>
+									{:else}
+										<div class="alert alert-warning mb-0">
+											This quiz does not contain any questions.
+										</div>
+									{/if}
 								</form>
 							{:else}
 								<div class="alert alert-warning mb-0">

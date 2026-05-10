@@ -26,6 +26,7 @@ import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizAttempt;
 import zhaw.ch.lessonflow.model.QuizAttemptCreateDTO;
+import zhaw.ch.lessonflow.model.QuizQuestion;
 import zhaw.ch.lessonflow.repository.QuizAttemptRepository;
 import zhaw.ch.lessonflow.repository.QuizRepository;
 import zhaw.ch.lessonflow.services.CourseService;
@@ -73,8 +74,9 @@ public class QuizAttemptControllerTest {
                 "quiz-1",
                 "enrollment-1",
                 "lesson-1",
-                80.0,
-                true
+                100.0,
+                true,
+                List.of(1, 1)
         );
         ReflectionTestUtils.setField(quizAttempt, "id", "attempt-1");
 
@@ -82,7 +84,7 @@ public class QuizAttemptControllerTest {
         ReflectionTestUtils.setField(quizAttemptCreateDTO, "quizId", "quiz-1");
         ReflectionTestUtils.setField(quizAttemptCreateDTO, "enrollmentId", "enrollment-1");
         ReflectionTestUtils.setField(quizAttemptCreateDTO, "lessonId", "lesson-1");
-        ReflectionTestUtils.setField(quizAttemptCreateDTO, "scorePercent", 80.0);
+        ReflectionTestUtils.setField(quizAttemptCreateDTO, "selectedOptionIndexes", List.of(1, 1));
 
         enrollment = new Enrollment(
                 "course-1",
@@ -100,10 +102,22 @@ public class QuizAttemptControllerTest {
         );
         ReflectionTestUtils.setField(lesson, "id", "lesson-1");
 
+        QuizQuestion question1 = new QuizQuestion(
+                "Which keyword should be used for a value that should not be reassigned?",
+                List.of("let", "const", "var", "function"),
+                1
+        );
+
+        QuizQuestion question2 = new QuizQuestion(
+                "What data type is used for true or false values?",
+                List.of("String", "Boolean", "Number", "Array"),
+                1
+        );
+
         quiz = new Quiz(
                 "lesson-1",
                 70,
-                List.of("Question 1", "Question 2")
+                List.of(question1, question2)
         );
         ReflectionTestUtils.setField(quiz, "id", "quiz-1");
     }
@@ -122,6 +136,7 @@ public class QuizAttemptControllerTest {
         assertEquals("attempt-1", response.getBody().getId());
         assertEquals("quiz-1", response.getBody().getQuizId());
         assertEquals("enrollment-1", response.getBody().getEnrollmentId());
+        assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
     }
 
     @Test
@@ -306,7 +321,8 @@ public class QuizAttemptControllerTest {
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertTrue(response.hasBody());
         assertEquals("attempt-1", response.getBody().getId());
-        assertEquals(80.0, response.getBody().getScorePercent());
+        assertEquals(100.0, response.getBody().getScorePercent());
+        assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
         assertTrue(response.getBody().isPassed());
     }
 

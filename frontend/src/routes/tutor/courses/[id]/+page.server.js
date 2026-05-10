@@ -3,6 +3,45 @@ import 'dotenv/config';
 
 const API_BASE_URL = process.env.API_BASE_URL;
 
+function buildSingleChoiceQuestions(data) {
+	const questions = [];
+
+	for (let i = 1; i <= 3; i++) {
+		const questionText = data.get(`question${i}`);
+		const optionA = data.get(`question${i}OptionA`);
+		const optionB = data.get(`question${i}OptionB`);
+		const optionC = data.get(`question${i}OptionC`);
+		const optionD = data.get(`question${i}OptionD`);
+		const correctOptionIndex = Number(data.get(`question${i}CorrectOptionIndex`));
+
+		if (!questionText && !optionA && !optionB && !optionC && !optionD) {
+			continue;
+		}
+
+		const options = [optionA, optionB, optionC, optionD].map((option) =>
+			option ? option.toString().trim() : ''
+		);
+
+		if (
+			!questionText ||
+			options.some((option) => option.length === 0) ||
+			Number.isNaN(correctOptionIndex) ||
+			correctOptionIndex < 0 ||
+			correctOptionIndex > 3
+		) {
+			return null;
+		}
+
+		questions.push({
+			questionText: questionText.toString().trim(),
+			options,
+			correctOptionIndex
+		});
+	}
+
+	return questions;
+}
+
 export async function load({ params, locals }) {
 	const jwt_token = locals.jwt_token;
 	const courseId = params.id;
@@ -225,22 +264,17 @@ export const actions = {
 
 		const lessonId = data.get('lessonId');
 		const passPercent = Number(data.get('passPercent'));
-		const questionsText = data.get('questions');
+		const questions = buildSingleChoiceQuestions(data);
 
-		if (!lessonId || !passPercent || !questionsText) {
+		if (!lessonId || !passPercent) {
 			return {
-				error: 'Lesson, pass percentage and questions are required'
+				error: 'Lesson and pass percentage are required'
 			};
 		}
 
-		const questions = questionsText
-			.split('\n')
-			.map((question) => question.trim())
-			.filter((question) => question.length > 0);
-
-		if (questions.length === 0) {
+		if (!questions || questions.length === 0) {
 			return {
-				error: 'At least one question is required'
+				error: 'Please provide at least one complete single-choice question'
 			};
 		}
 
@@ -262,7 +296,7 @@ export const actions = {
 			});
 
 			return {
-				success: 'Quiz created successfully'
+				success: 'Single-choice quiz created successfully'
 			};
 		} catch (error) {
 			console.log('Error creating quiz:', error?.response?.data || error);

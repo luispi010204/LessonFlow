@@ -141,7 +141,7 @@ export const actions = {
 
 		const quizId = data.get('quizId');
 		const lessonId = data.get('lessonId');
-		const scorePercent = data.get('scorePercent');
+		const questionCount = Number(data.get('questionCount'));
 
 		if (!jwt_token) {
 			return {
@@ -149,10 +149,24 @@ export const actions = {
 			};
 		}
 
-		if (!quizId || !lessonId || !scorePercent) {
+		if (!quizId || !lessonId || !questionCount || Number.isNaN(questionCount)) {
 			return {
 				error: 'Quiz attempt data is missing'
 			};
+		}
+
+		const selectedOptionIndexes = [];
+
+		for (let i = 0; i < questionCount; i++) {
+			const selectedOptionIndex = data.get(`selectedOptionIndex-${i}`);
+
+			if (selectedOptionIndex === null) {
+				return {
+					error: 'Please answer all quiz questions'
+				};
+			}
+
+			selectedOptionIndexes.push(Number(selectedOptionIndex));
 		}
 
 		try {
@@ -167,7 +181,7 @@ export const actions = {
 					quizId,
 					enrollmentId,
 					lessonId,
-					scorePercent: Number(scorePercent)
+					selectedOptionIndexes
 				}
 			});
 

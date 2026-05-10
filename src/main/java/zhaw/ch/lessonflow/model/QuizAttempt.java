@@ -1,5 +1,7 @@
 package zhaw.ch.lessonflow.model;
 
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -33,4 +35,7 @@ public class QuizAttempt {
 
     @NonNull
     private boolean passed;
+
+    @NonNull
+    private List<Integer> selectedOptionIndexes;
 }
