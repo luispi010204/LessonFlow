@@ -44,7 +44,7 @@ public class CourseController {
 
     @GetMapping("/course")
     public List<Course> getAllCourses() {
-        return courseRepository.findAll();
+        return courseRepository.findByStatus(CourseStatus.PUBLISHED);
     }
 
     @GetMapping("/course/me")
@@ -63,12 +63,48 @@ public class CourseController {
 
     @GetMapping("/course/{id}")
     public ResponseEntity<Course> getCourseById(@PathVariable String id) {
-        Optional<Course> course = courseRepository.findById(id);
+        Optional<Course> courseData = courseRepository.findById(id);
 
-        if (course.isPresent()) {
-            return new ResponseEntity<>(course.get(), HttpStatus.OK);
-        } else {
+        if (courseData.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+
+        Course course = courseData.get();
+
+        if (course.getStatus() == CourseStatus.PUBLISHED) {
+            return new ResponseEntity<>(course, HttpStatus.OK);
+        }
+
+        if (userService.userHasRole("tutor")
+                && course.getTutorUserId().equals(userService.getCurrentUserId())) {
+            return new ResponseEntity<>(course, HttpStatus.OK);
+        }
+
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+    }
+
+    @PostMapping("/course/{id}/publish")
+    public ResponseEntity<Course> publishCourse(@PathVariable String id) {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        Optional<Course> courseData = courseRepository.findById(id);
+
+        if (courseData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        Course course = courseData.get();
+
+        if (!course.getTutorUserId().equals(userService.getCurrentUserId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        course.publish();
+
+        Course savedCourse = courseRepository.save(course);
+        return new ResponseEntity<>(savedCourse, HttpStatus.OK);
     }
 }

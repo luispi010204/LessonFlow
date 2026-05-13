@@ -28,4 +28,8 @@ public class Course {
 
     @NonNull
     private CourseStatus status;
+
+    public void publish() {
+        this.status = CourseStatus.PUBLISHED;
+    }
 }

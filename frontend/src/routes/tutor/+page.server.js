@@ -80,5 +80,44 @@ export const actions = {
 				error: 'Could not create course'
 			};
 		}
+	},
+
+	publishCourse: async ({ request, locals }) => {
+		const jwt_token = locals.jwt_token;
+
+		if (!jwt_token) {
+			return {
+				error: 'Authentication required'
+			};
+		}
+
+		const data = await request.formData();
+		const courseId = data.get('courseId');
+
+		if (!courseId) {
+			return {
+				error: 'Course ID is missing'
+			};
+		}
+
+		try {
+			await axios({
+				method: 'post',
+				url: `${API_BASE_URL}/api/course/${courseId}/publish`,
+				headers: {
+					Authorization: 'Bearer ' + jwt_token
+				}
+			});
+
+			return {
+				success: 'Course published successfully'
+			};
+		} catch (error) {
+			console.log('Error publishing course:', error?.response?.data || error);
+
+			return {
+				error: 'Could not publish course'
+			};
+		}
 	}
 };
