@@ -50,6 +50,34 @@
 
 		return material.slice(0, maxLength) + "...";
 	}
+
+	function getOptionLabel(optionIndex) {
+		if (optionIndex === 0) {
+			return "A";
+		}
+
+		if (optionIndex === 1) {
+			return "B";
+		}
+
+		if (optionIndex === 2) {
+			return "C";
+		}
+
+		if (optionIndex === 3) {
+			return "D";
+		}
+
+		return "";
+	}
+
+	function getOptionClass(optionIndex, correctOptionIndex) {
+		if (optionIndex === correctOptionIndex) {
+			return "list-group-item-success border-success";
+		}
+
+		return "";
+	}
 </script>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -241,10 +269,79 @@ Describe what the learner should understand or try out.`}
 											</small>
 
 											{#if card.quiz}
-												<div class="alert alert-success py-2 mb-0">
-													<strong>AI Quiz ready</strong><br />
-													Pass percent: {card.quiz.passPercent}%<br />
-													Questions: {card.quiz.questions ? card.quiz.questions.length : 0}
+												<div class="border rounded p-3 bg-light quiz-preview">
+													<div class="d-flex justify-content-between align-items-center mb-3">
+														<div>
+															<strong>AI Quiz ready</strong>
+															<div class="text-muted small">
+																Pass percent: {card.quiz.passPercent}% · Questions: {card.quiz.questions ? card.quiz.questions.length : 0}
+															</div>
+														</div>
+
+														<span class="badge bg-success">Generated</span>
+													</div>
+
+													{#if card.quiz.questions && card.quiz.questions.length > 0}
+														<div class="accordion" id={`quiz-preview-${card.lesson.id}`}>
+															{#each card.quiz.questions as question, questionIndex}
+																<div class="accordion-item quiz-question-card">
+																	<h2
+																		class="accordion-header"
+																		id={`quiz-heading-${card.lesson.id}-${questionIndex}`}
+																	>
+																		<button
+																			class="accordion-button {questionIndex === 0 ? '' : 'collapsed'}"
+																			type="button"
+																			data-bs-toggle="collapse"
+																			data-bs-target={`#quiz-collapse-${card.lesson.id}-${questionIndex}`}
+																			aria-expanded={questionIndex === 0 ? "true" : "false"}
+																			aria-controls={`quiz-collapse-${card.lesson.id}-${questionIndex}`}
+																		>
+																			Question {questionIndex + 1}: {question.questionText}
+																		</button>
+																	</h2>
+
+																	<div
+																		id={`quiz-collapse-${card.lesson.id}-${questionIndex}`}
+																		class="accordion-collapse collapse {questionIndex === 0 ? 'show' : ''}"
+																		aria-labelledby={`quiz-heading-${card.lesson.id}-${questionIndex}`}
+																		data-bs-parent={`#quiz-preview-${card.lesson.id}`}
+																	>
+																		<div class="accordion-body">
+																			{#if question.options && question.options.length > 0}
+																				<div class="list-group">
+																					{#each question.options as option, optionIndex}
+																						<div
+																							class={`list-group-item py-2 ${getOptionClass(optionIndex, question.correctOptionIndex)}`}
+																						>
+																							<div class="d-flex justify-content-between align-items-start gap-2">
+																								<div>
+																									<strong>{getOptionLabel(optionIndex)}:</strong>
+																									{option}
+																								</div>
+
+																								{#if optionIndex === question.correctOptionIndex}
+																									<span class="badge bg-success">Correct</span>
+																								{/if}
+																							</div>
+																						</div>
+																					{/each}
+																				</div>
+																			{:else}
+																				<div class="alert alert-warning mb-0">
+																					This question has no answer options.
+																				</div>
+																			{/if}
+																		</div>
+																	</div>
+																</div>
+															{/each}
+														</div>
+													{:else}
+														<div class="alert alert-warning mb-0">
+															This quiz does not contain any questions.
+														</div>
+													{/if}
 												</div>
 											{:else}
 												<div class="alert alert-warning py-2 mb-3">
@@ -447,5 +544,13 @@ Describe what the learner should understand or try out.`}
 		line-height: 1.5;
 		max-height: 220px;
 		overflow-y: auto;
+	}
+
+	.quiz-preview {
+		font-size: 0.95rem;
+	}
+
+	.quiz-question-card + .quiz-question-card {
+		margin-top: 0.5rem;
 	}
 </style>
