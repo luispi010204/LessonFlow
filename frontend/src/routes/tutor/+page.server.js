@@ -82,6 +82,59 @@ export const actions = {
 		}
 	},
 
+	updateCourse: async ({ request, locals }) => {
+		const jwt_token = locals.jwt_token;
+
+		if (!jwt_token) {
+			return {
+				error: 'Authentication required'
+			};
+		}
+
+		const data = await request.formData();
+
+		const courseId = data.get('courseId');
+
+		const course = {
+			title: data.get('title'),
+			description: data.get('description')
+		};
+
+		if (!courseId) {
+			return {
+				error: 'Course ID is missing'
+			};
+		}
+
+		if (!course.title || !course.description) {
+			return {
+				error: 'Title and description are required'
+			};
+		}
+
+		try {
+			await axios({
+				method: 'put',
+				url: `${API_BASE_URL}/api/course/${courseId}`,
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: 'Bearer ' + jwt_token
+				},
+				data: course
+			});
+
+			return {
+				success: 'Course updated successfully'
+			};
+		} catch (error) {
+			console.log('Error updating course:', error?.response?.data || error);
+
+			return {
+				error: 'Could not update course'
+			};
+		}
+	},
+
 	publishCourse: async ({ request, locals }) => {
 		const jwt_token = locals.jwt_token;
 

@@ -27,4 +27,9 @@ public class Quiz {
 
     @NonNull
     private List<QuizQuestion> questions;
+
+    public void updateDetails(int passPercent, List<QuizQuestion> questions) {
+        this.passPercent = passPercent;
+        this.questions = questions;
+    }
 }

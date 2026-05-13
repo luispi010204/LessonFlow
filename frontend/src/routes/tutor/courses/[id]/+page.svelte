@@ -78,6 +78,14 @@
 
 		return "";
 	}
+
+	function getQuestionOption(question, optionIndex) {
+		if (!question.options || !question.options[optionIndex]) {
+			return "";
+		}
+
+		return question.options[optionIndex];
+	}
 </script>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -237,7 +245,7 @@ Describe what the learner should understand or try out.`}
 						</p>
 					{:else}
 						<div class="list-group">
-							{#each lessonCards as card}
+							{#each lessonCards as card, lessonIndex}
 								<div class="list-group-item">
 									<div class="d-flex justify-content-between align-items-start gap-3">
 										<div class="w-100">
@@ -268,6 +276,61 @@ Describe what the learner should understand or try out.`}
 												Lesson ID: {card.lesson.id}
 											</small>
 
+											<div class="collapse" id={`edit-lesson-${lessonIndex}`}>
+												<div class="border rounded p-3 mb-3">
+													<h6 class="mb-3">Edit Lesson</h6>
+
+													<form method="POST" action="?/updateLesson">
+														<input type="hidden" name="lessonId" value={card.lesson.id} />
+
+														<div class="mb-3">
+															<label class="form-label" for={`edit-lesson-title-${lessonIndex}`}>
+																Title
+															</label>
+															<input
+																id={`edit-lesson-title-${lessonIndex}`}
+																name="title"
+																class="form-control"
+																type="text"
+																value={card.lesson.title}
+																required
+															/>
+														</div>
+
+														<div class="mb-3">
+															<label class="form-label" for={`edit-lesson-material-${lessonIndex}`}>
+																Material
+															</label>
+															<textarea
+																id={`edit-lesson-material-${lessonIndex}`}
+																name="material"
+																class="form-control lesson-material-textarea"
+																rows="8"
+																required
+															>{card.lesson.material}</textarea>
+														</div>
+
+														<div class="mb-3">
+															<label class="form-label" for={`edit-lesson-meeting-link-${lessonIndex}`}>
+																Meeting Link
+															</label>
+															<input
+																id={`edit-lesson-meeting-link-${lessonIndex}`}
+																name="meetingLink"
+																class="form-control"
+																type="text"
+																value={card.lesson.meetingLink}
+																required
+															/>
+														</div>
+
+														<button type="submit" class="btn btn-primary btn-sm">
+															Save Lesson Changes
+														</button>
+													</form>
+												</div>
+											</div>
+
 											{#if card.quiz}
 												<div class="border rounded p-3 bg-light quiz-preview">
 													<div class="d-flex justify-content-between align-items-center mb-3">
@@ -278,7 +341,20 @@ Describe what the learner should understand or try out.`}
 															</div>
 														</div>
 
-														<span class="badge bg-success">Generated</span>
+														<div class="d-flex gap-2 align-items-center">
+															<button
+																class="btn btn-outline-secondary btn-sm"
+																type="button"
+																data-bs-toggle="collapse"
+																data-bs-target={`#edit-quiz-${lessonIndex}`}
+																aria-expanded="false"
+																aria-controls={`edit-quiz-${lessonIndex}`}
+															>
+																Edit Quiz
+															</button>
+
+															<span class="badge bg-success">Generated</span>
+														</div>
 													</div>
 
 													{#if card.quiz.questions && card.quiz.questions.length > 0}
@@ -343,6 +419,168 @@ Describe what the learner should understand or try out.`}
 														</div>
 													{/if}
 												</div>
+
+												<div class="collapse mt-3" id={`edit-quiz-${lessonIndex}`}>
+													<div class="border rounded p-3">
+														<h6 class="mb-3">Edit Quiz</h6>
+
+														<form method="POST" action="?/updateQuiz">
+															<input type="hidden" name="quizId" value={card.quiz.id} />
+															<input
+																type="hidden"
+																name="questionCount"
+																value={card.quiz.questions ? card.quiz.questions.length : 0}
+															/>
+
+															<div class="mb-3">
+																<label class="form-label" for={`edit-quiz-pass-percent-${lessonIndex}`}>
+																	Pass Percent
+																</label>
+																<input
+																	id={`edit-quiz-pass-percent-${lessonIndex}`}
+																	name="passPercent"
+																	class="form-control"
+																	type="number"
+																	min="1"
+																	max="100"
+																	value={card.quiz.passPercent}
+																	required
+																/>
+															</div>
+
+															{#if card.quiz.questions && card.quiz.questions.length > 0}
+																{#each card.quiz.questions as question, questionIndex}
+																	<div class="border rounded p-3 mb-3">
+																		<h6 class="mb-3">Question {questionIndex + 1}</h6>
+
+																		<div class="mb-3">
+																			<label
+																				class="form-label"
+																				for={`edit-question-text-${lessonIndex}-${questionIndex}`}
+																			>
+																				Question Text
+																			</label>
+																			<input
+																				id={`edit-question-text-${lessonIndex}-${questionIndex}`}
+																				name={`questionText-${questionIndex}`}
+																				class="form-control"
+																				type="text"
+																				value={question.questionText}
+																				required
+																			/>
+																		</div>
+
+																		<div class="row g-2">
+																			<div class="col-md-6">
+																				<label
+																					class="form-label"
+																					for={`edit-question-option-a-${lessonIndex}-${questionIndex}`}
+																				>
+																					Option A
+																				</label>
+																				<input
+																					id={`edit-question-option-a-${lessonIndex}-${questionIndex}`}
+																					name={`questionOptionA-${questionIndex}`}
+																					class="form-control"
+																					type="text"
+																					value={getQuestionOption(question, 0)}
+																					required
+																				/>
+																			</div>
+
+																			<div class="col-md-6">
+																				<label
+																					class="form-label"
+																					for={`edit-question-option-b-${lessonIndex}-${questionIndex}`}
+																				>
+																					Option B
+																				</label>
+																				<input
+																					id={`edit-question-option-b-${lessonIndex}-${questionIndex}`}
+																					name={`questionOptionB-${questionIndex}`}
+																					class="form-control"
+																					type="text"
+																					value={getQuestionOption(question, 1)}
+																					required
+																				/>
+																			</div>
+
+																			<div class="col-md-6">
+																				<label
+																					class="form-label"
+																					for={`edit-question-option-c-${lessonIndex}-${questionIndex}`}
+																				>
+																					Option C
+																				</label>
+																				<input
+																					id={`edit-question-option-c-${lessonIndex}-${questionIndex}`}
+																					name={`questionOptionC-${questionIndex}`}
+																					class="form-control"
+																					type="text"
+																					value={getQuestionOption(question, 2)}
+																					required
+																				/>
+																			</div>
+
+																			<div class="col-md-6">
+																				<label
+																					class="form-label"
+																					for={`edit-question-option-d-${lessonIndex}-${questionIndex}`}
+																				>
+																					Option D
+																				</label>
+																				<input
+																					id={`edit-question-option-d-${lessonIndex}-${questionIndex}`}
+																					name={`questionOptionD-${questionIndex}`}
+																					class="form-control"
+																					type="text"
+																					value={getQuestionOption(question, 3)}
+																					required
+																				/>
+																			</div>
+																		</div>
+
+																		<div class="mt-3">
+																			<label
+																				class="form-label"
+																				for={`edit-correct-option-${lessonIndex}-${questionIndex}`}
+																			>
+																				Correct Answer
+																			</label>
+																			<select
+																				id={`edit-correct-option-${lessonIndex}-${questionIndex}`}
+																				name={`correctOptionIndex-${questionIndex}`}
+																				class="form-select"
+																				required
+																			>
+																				<option value="0" selected={question.correctOptionIndex === 0}>
+																					Option A
+																				</option>
+																				<option value="1" selected={question.correctOptionIndex === 1}>
+																					Option B
+																				</option>
+																				<option value="2" selected={question.correctOptionIndex === 2}>
+																					Option C
+																				</option>
+																				<option value="3" selected={question.correctOptionIndex === 3}>
+																					Option D
+																				</option>
+																			</select>
+																		</div>
+																	</div>
+																{/each}
+
+																<button type="submit" class="btn btn-primary btn-sm">
+																	Save Quiz Changes
+																</button>
+															{:else}
+																<div class="alert alert-warning mb-0">
+																	This quiz does not contain editable questions.
+																</div>
+															{/if}
+														</form>
+													</div>
+												</div>
 											{:else}
 												<div class="alert alert-warning py-2 mb-3">
 													No quiz created for this lesson yet.
@@ -400,11 +638,24 @@ Describe what the learner should understand or try out.`}
 											{/if}
 										</div>
 
-										{#if card.quiz}
-											<span class="badge bg-success">Quiz ready</span>
-										{:else}
-											<span class="badge bg-warning text-dark">No quiz</span>
-										{/if}
+										<div class="d-flex flex-column gap-2 align-items-end">
+											<button
+												class="btn btn-outline-secondary btn-sm"
+												type="button"
+												data-bs-toggle="collapse"
+												data-bs-target={`#edit-lesson-${lessonIndex}`}
+												aria-expanded="false"
+												aria-controls={`edit-lesson-${lessonIndex}`}
+											>
+												Edit
+											</button>
+
+											{#if card.quiz}
+												<span class="badge bg-success">Quiz ready</span>
+											{:else}
+												<span class="badge bg-warning text-dark">No quiz</span>
+											{/if}
+										</div>
 									</div>
 								</div>
 							{/each}

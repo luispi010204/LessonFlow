@@ -32,4 +32,9 @@ public class Course {
     public void publish() {
         this.status = CourseStatus.PUBLISHED;
     }
+
+    public void updateDetails(String title, String description) {
+        this.title = title;
+        this.description = description;
+    }
 }

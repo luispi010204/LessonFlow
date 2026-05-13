@@ -56,6 +56,7 @@ public class QuizControllerTest {
     Lesson lesson;
     Quiz quiz;
     QuizCreateDTO quizCreateDTO;
+    QuizCreateDTO quizUpdateDTO;
     List<QuizQuestion> questions;
 
     @BeforeEach
@@ -93,6 +94,24 @@ public class QuizControllerTest {
         ReflectionTestUtils.setField(quizCreateDTO, "lessonId", "lesson-1");
         ReflectionTestUtils.setField(quizCreateDTO, "passPercent", 70);
         ReflectionTestUtils.setField(quizCreateDTO, "questions", questions);
+
+        List<QuizQuestion> updatedQuestions = List.of(
+                new QuizQuestion(
+                        "Which element defines the beat in music?",
+                        List.of("Rhythm", "Color", "Volume", "Texture"),
+                        0
+                ),
+                new QuizQuestion(
+                        "What does tempo describe?",
+                        List.of("Speed", "Pitch", "Instrument", "Lyrics"),
+                        0
+                )
+        );
+
+        quizUpdateDTO = new QuizCreateDTO();
+        ReflectionTestUtils.setField(quizUpdateDTO, "lessonId", "different-lesson-id-should-be-ignored");
+        ReflectionTestUtils.setField(quizUpdateDTO, "passPercent", 80);
+        ReflectionTestUtils.setField(quizUpdateDTO, "questions", updatedQuestions);
     }
 
     @Test
@@ -477,6 +496,123 @@ public class QuizControllerTest {
         ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 1, 70);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldUpdateQuizWhenTutorOwnsLessonCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(quizRepository.save(any(Quiz.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("quiz-1", response.getBody().getId());
+        assertEquals("lesson-1", response.getBody().getLessonId());
+        assertEquals(80, response.getBody().getPassPercent());
+        assertEquals(2, response.getBody().getQuestions().size());
+        assertEquals("Which element defines the beat in music?",
+                response.getBody().getQuestions().get(0).getQuestionText());
+        assertEquals(0, response.getBody().getQuestions().get(0).getCorrectOptionIndex());
+
+        verify(quizRepository).save(quiz);
+    }
+
+    @Test
+    void shouldNotUpdateQuizWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(quizRepository, never()).findById(anyString());
+        verify(lessonService, never()).getLessonById(anyString());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingQuizThatDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        verify(lessonService, never()).getLessonById(anyString());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotUpdateQuizWhenPassPercentIsTooLow() {
+        ReflectionTestUtils.setField(quizUpdateDTO, "passPercent", 0);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(lessonService, never()).getLessonById(anyString());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotUpdateQuizWhenQuestionsAreInvalid() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "",
+                        List.of("A", "B", "C", "D"),
+                        0
+                )
+        );
+
+        ReflectionTestUtils.setField(quizUpdateDTO, "questions", invalidQuestions);
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(lessonService, never()).getLessonById(anyString());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdatingQuizWhoseLessonDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(anyString(), anyString());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingQuizForAnotherTutorsCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|other-tutor")).thenReturn(false);
+
+        ResponseEntity<Quiz> response = quizController.updateQuiz("quiz-1", quizUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 
         verify(quizRepository, never()).save(any(Quiz.class));
     }

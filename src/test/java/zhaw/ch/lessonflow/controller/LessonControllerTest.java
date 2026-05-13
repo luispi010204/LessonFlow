@@ -44,6 +44,7 @@ public class LessonControllerTest {
 
     Lesson lesson;
     LessonCreateDTO lessonCreateDTO;
+    LessonCreateDTO lessonUpdateDTO;
 
     @BeforeEach
     void setUp() {
@@ -62,6 +63,13 @@ public class LessonControllerTest {
         ReflectionTestUtils.setField(lessonCreateDTO, "title", "Understanding Rhythm");
         ReflectionTestUtils.setField(lessonCreateDTO, "material", "Learn about beats, tempo and note values.");
         ReflectionTestUtils.setField(lessonCreateDTO, "meetingLink", "https://meeting.example.com");
+
+        lessonUpdateDTO = new LessonCreateDTO();
+        ReflectionTestUtils.setField(lessonUpdateDTO, "courseId", "ignored-course-id");
+        ReflectionTestUtils.setField(lessonUpdateDTO, "lessonNumber", 99);
+        ReflectionTestUtils.setField(lessonUpdateDTO, "title", "Updated Rhythm");
+        ReflectionTestUtils.setField(lessonUpdateDTO, "material", "Updated lesson material.");
+        ReflectionTestUtils.setField(lessonUpdateDTO, "meetingLink", "https://updated-meeting.example.com");
     }
 
     @Test
@@ -107,6 +115,20 @@ public class LessonControllerTest {
     }
 
     @Test
+    void shouldNotCreateLessonWhenTitleIsBlank() {
+        ReflectionTestUtils.setField(lessonCreateDTO, "title", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+
+        ResponseEntity<Lesson> response = lessonController.createLesson(lessonCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseExists(any());
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
     void shouldNotCreateLessonWhenCourseDoesNotExist() {
         when(userService.userHasRole("tutor")).thenReturn(true);
         when(courseService.courseExists("course-1")).thenReturn(false);
@@ -147,6 +169,81 @@ public class LessonControllerTest {
         ResponseEntity<Lesson> response = lessonController.createLesson(lessonCreateDTO);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldUpdateLessonWhenTutorOwnsCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<Lesson> response = lessonController.updateLesson("lesson-1", lessonUpdateDTO);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("lesson-1", response.getBody().getId());
+        assertEquals("course-1", response.getBody().getCourseId());
+        assertEquals(1, response.getBody().getLessonNumber());
+        assertEquals("Updated Rhythm", response.getBody().getTitle());
+        assertEquals("Updated lesson material.", response.getBody().getMaterial());
+        assertEquals("https://updated-meeting.example.com", response.getBody().getMeetingLink());
+
+        verify(lessonRepository).save(lesson);
+    }
+
+    @Test
+    void shouldNotUpdateLessonWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Lesson> response = lessonController.updateLesson("lesson-1", lessonUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(lessonRepository, never()).findById(any());
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingLessonThatDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Lesson> response = lessonController.updateLesson("lesson-1", lessonUpdateDTO);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdatingLessonWithBlankMaterial() {
+        ReflectionTestUtils.setField(lessonUpdateDTO, "material", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Lesson> response = lessonController.updateLesson("lesson-1", lessonUpdateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(any(), any());
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingLessonOfAnotherTutorsCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|other-tutor")).thenReturn(false);
+
+        ResponseEntity<Lesson> response = lessonController.updateLesson("lesson-1", lessonUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 
         verify(lessonRepository, never()).save(any(Lesson.class));
     }
