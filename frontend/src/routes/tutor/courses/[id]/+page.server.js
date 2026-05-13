@@ -3,45 +3,6 @@ import 'dotenv/config';
 
 const API_BASE_URL = process.env.API_BASE_URL;
 
-function buildSingleChoiceQuestions(data) {
-	const questions = [];
-
-	for (let i = 1; i <= 3; i++) {
-		const questionText = data.get(`question${i}`);
-		const optionA = data.get(`question${i}OptionA`);
-		const optionB = data.get(`question${i}OptionB`);
-		const optionC = data.get(`question${i}OptionC`);
-		const optionD = data.get(`question${i}OptionD`);
-		const correctOptionIndex = Number(data.get(`question${i}CorrectOptionIndex`));
-
-		if (!questionText && !optionA && !optionB && !optionC && !optionD) {
-			continue;
-		}
-
-		const options = [optionA, optionB, optionC, optionD].map((option) =>
-			option ? option.toString().trim() : ''
-		);
-
-		if (
-			!questionText ||
-			options.some((option) => option.length === 0) ||
-			Number.isNaN(correctOptionIndex) ||
-			correctOptionIndex < 0 ||
-			correctOptionIndex > 3
-		) {
-			return null;
-		}
-
-		questions.push({
-			questionText: questionText.toString().trim(),
-			options,
-			correctOptionIndex
-		});
-	}
-
-	return questions;
-}
-
 export async function load({ params, locals }) {
 	const jwt_token = locals.jwt_token;
 	const courseId = params.id;
@@ -251,7 +212,7 @@ export const actions = {
 		}
 	},
 
-	createQuiz: async ({ request, locals }) => {
+	generateAiQuiz: async ({ request, locals }) => {
 		const jwt_token = locals.jwt_token;
 
 		if (!jwt_token) {
@@ -263,46 +224,48 @@ export const actions = {
 		const data = await request.formData();
 
 		const lessonId = data.get('lessonId');
-		const passPercent = Number(data.get('passPercent'));
-		const questions = buildSingleChoiceQuestions(data);
+		const questionCount = Number(data.get('questionCount') || 3);
+		const passPercent = Number(data.get('passPercent') || 70);
 
-		if (!lessonId || !passPercent) {
+		if (!lessonId) {
 			return {
-				error: 'Lesson and pass percentage are required'
+				error: 'Lesson ID is missing'
 			};
 		}
 
-		if (!questions || questions.length === 0) {
+		if (Number.isNaN(questionCount) || questionCount < 1 || questionCount > 10) {
 			return {
-				error: 'Please provide at least one complete single-choice question'
+				error: 'Question count must be between 1 and 10'
 			};
 		}
 
-		const quiz = {
-			lessonId,
-			passPercent,
-			questions
-		};
+		if (Number.isNaN(passPercent) || passPercent < 1 || passPercent > 100) {
+			return {
+				error: 'Pass percentage must be between 1 and 100'
+			};
+		}
 
 		try {
 			await axios({
 				method: 'post',
-				url: `${API_BASE_URL}/api/quiz`,
+				url: `${API_BASE_URL}/api/quiz/lesson/${lessonId}/generate-ai`,
 				headers: {
-					'Content-Type': 'application/json',
 					Authorization: 'Bearer ' + jwt_token
 				},
-				data: quiz
+				params: {
+					questionCount,
+					passPercent
+				}
 			});
 
 			return {
-				success: 'Single-choice quiz created successfully'
+				success: 'AI quiz generated successfully'
 			};
 		} catch (error) {
-			console.log('Error creating quiz:', error?.response?.data || error);
+			console.log('Error generating AI quiz:', error?.response?.data || error);
 
 			return {
-				error: 'Could not create quiz. A quiz may already exist for this lesson.'
+				error: 'Could not generate AI quiz. A quiz may already exist or the lesson material may be too short.'
 			};
 		}
 	},

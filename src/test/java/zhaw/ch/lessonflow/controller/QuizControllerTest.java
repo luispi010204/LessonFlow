@@ -3,6 +3,8 @@ package zhaw.ch.lessonflow.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,6 +27,7 @@ import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizCreateDTO;
 import zhaw.ch.lessonflow.model.QuizQuestion;
 import zhaw.ch.lessonflow.repository.QuizRepository;
+import zhaw.ch.lessonflow.services.AiQuizService;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.LessonService;
 import zhaw.ch.lessonflow.services.UserService;
@@ -43,6 +46,9 @@ public class QuizControllerTest {
 
     @Mock
     CourseService courseService;
+
+    @Mock
+    AiQuizService aiQuizService;
 
     @InjectMocks
     QuizController quizController;
@@ -310,6 +316,165 @@ public class QuizControllerTest {
         when(quizRepository.findByLessonId("lesson-1")).thenReturn(Optional.of(quiz));
 
         ResponseEntity<Quiz> response = quizController.createQuiz(quizCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldGenerateAiQuizWhenTutorOwnsLessonAndNoQuizExists() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(quizRepository.findByLessonId("lesson-1")).thenReturn(Optional.empty());
+        when(aiQuizService.generateQuizQuestions("Understanding Rhythm", "Learn about beats, tempo and note values.", 2))
+                .thenReturn(Optional.of(questions));
+        when(quizRepository.save(any(Quiz.class))).thenAnswer(invocation -> {
+            Quiz savedQuiz = invocation.getArgument(0);
+            ReflectionTestUtils.setField(savedQuiz, "id", "ai-quiz-1");
+            return savedQuiz;
+        });
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("ai-quiz-1", response.getBody().getId());
+        assertEquals("lesson-1", response.getBody().getLessonId());
+        assertEquals(70, response.getBody().getPassPercent());
+        assertEquals(2, response.getBody().getQuestions().size());
+        assertEquals("Which keyword should be used for a value that should not be reassigned?",
+                response.getBody().getQuestions().get(0).getQuestionText());
+
+        verify(aiQuizService).generateQuizQuestions("Understanding Rhythm", "Learn about beats, tempo and note values.", 2);
+        verify(quizRepository).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(lessonService, never()).getLessonById(anyString());
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenLessonDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(anyString(), anyString());
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenPassPercentIsInvalid() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 101);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(anyString(), anyString());
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenQuestionCountIsInvalid() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 0, 70);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseBelongsToTutor(anyString(), anyString());
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenCourseDoesNotBelongToTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(false);
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(quizRepository, never()).findByLessonId(anyString());
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenQuizAlreadyExistsForLesson() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(quizRepository.findByLessonId("lesson-1")).thenReturn(Optional.of(quiz));
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(aiQuizService, never()).generateQuizQuestions(anyString(), anyString(), anyInt());
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenAiServiceReturnsEmpty() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(quizRepository.findByLessonId("lesson-1")).thenReturn(Optional.empty());
+        when(aiQuizService.generateQuizQuestions("Understanding Rhythm", "Learn about beats, tempo and note values.", 2))
+                .thenReturn(Optional.empty());
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 2, 70);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(quizRepository, never()).save(any(Quiz.class));
+    }
+
+    @Test
+    void shouldNotGenerateAiQuizWhenAiServiceReturnsInvalidQuestions() {
+        List<QuizQuestion> invalidQuestions = List.of(
+                new QuizQuestion(
+                        "",
+                        List.of("A", "B", "C", "D"),
+                        0
+                )
+        );
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        when(quizRepository.findByLessonId("lesson-1")).thenReturn(Optional.empty());
+        when(aiQuizService.generateQuizQuestions("Understanding Rhythm", "Learn about beats, tempo and note values.", 1))
+                .thenReturn(Optional.of(invalidQuestions));
+
+        ResponseEntity<Quiz> response = quizController.generateAiQuiz("lesson-1", 1, 70);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
 
