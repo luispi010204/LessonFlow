@@ -7,12 +7,28 @@
 
 	let courses = data.courses || [];
 	let error = data.error;
+
+	function getCourseStatusBadgeClass(status) {
+		if (status === 'PUBLISHED') {
+			return 'bg-success';
+		}
+
+		if (status === 'DRAFT') {
+			return 'bg-secondary';
+		}
+
+		if (status === 'ARCHIVED') {
+			return 'bg-dark';
+		}
+
+		return 'bg-secondary';
+	}
 </script>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
 	<div>
 		<h1 class="mb-1">Tutor Dashboard</h1>
-		<p class="text-muted mb-0">Manage your courses, lessons and quizzes.</p>
+		<p class="text-muted mb-0">Manage your courses, lessons and AI-generated quizzes.</p>
 	</div>
 </div>
 
@@ -59,9 +75,11 @@
 		<div class="col-md-4">
 			<div class="card shadow-sm h-100">
 				<div class="card-body">
-					<h5 class="card-title">Lessons</h5>
-					<p class="display-6 mb-0">—</p>
-					<p class="text-muted mb-0">Shown inside each course management page.</p>
+					<h5 class="card-title">Draft Courses</h5>
+					<p class="display-6 mb-0">
+						{courses.filter((course) => course.status === 'DRAFT').length}
+					</p>
+					<p class="text-muted mb-0">Draft courses are hidden from learners.</p>
 				</div>
 			</div>
 		</div>
@@ -69,9 +87,11 @@
 		<div class="col-md-4">
 			<div class="card shadow-sm h-100">
 				<div class="card-body">
-					<h5 class="card-title">Quizzes</h5>
-					<p class="display-6 mb-0">—</p>
-					<p class="text-muted mb-0">Manual quizzes now, AI generation later.</p>
+					<h5 class="card-title">Published Courses</h5>
+					<p class="display-6 mb-0">
+						{courses.filter((course) => course.status === 'PUBLISHED').length}
+					</p>
+					<p class="text-muted mb-0">Published courses are visible to learners.</p>
 				</div>
 			</div>
 		</div>
@@ -87,6 +107,7 @@
 				<div class="card-body">
 					<p class="text-muted">
 						New courses are created with status <span class="badge bg-secondary">DRAFT</span>.
+						Publish them once lessons and quizzes are ready.
 					</p>
 
 					<form method="POST" action="?/createCourse">
@@ -128,12 +149,14 @@
 							{#each courses as course}
 								<div class="list-group-item">
 									<div class="d-flex justify-content-between align-items-start gap-3">
-										<div>
+										<div class="w-100">
 											<div class="d-flex align-items-center gap-2 mb-1">
 												<h6 class="mb-0">{course.title}</h6>
 
 												{#if course.status}
-													<span class="badge bg-secondary">{course.status}</span>
+													<span class={`badge ${getCourseStatusBadgeClass(course.status)}`}>
+														{course.status}
+													</span>
 												{/if}
 											</div>
 
@@ -141,14 +164,36 @@
 												{course.description}
 											</p>
 
-											<small class="text-muted">
+											<small class="text-muted d-block mb-3">
 												Course ID: {course.id}
 											</small>
+
+											{#if course.status === 'DRAFT'}
+												<div class="alert alert-warning py-2 mb-3">
+													This course is still a draft and is not visible to learners.
+												</div>
+											{:else if course.status === 'PUBLISHED'}
+												<div class="alert alert-success py-2 mb-3">
+													This course is published and visible to learners.
+												</div>
+											{/if}
 										</div>
 
-										<a href={`/tutor/courses/${course.id}`} class="btn btn-outline-primary btn-sm">
-											Manage Course
-										</a>
+										<div class="d-flex flex-column gap-2 align-items-end">
+											<a href={`/tutor/courses/${course.id}`} class="btn btn-outline-primary btn-sm">
+												Manage Course
+											</a>
+
+											{#if course.status === 'DRAFT'}
+												<form method="POST" action="?/publishCourse">
+													<input type="hidden" name="courseId" value={course.id} />
+
+													<button type="submit" class="btn btn-success btn-sm">
+														Publish
+													</button>
+												</form>
+											{/if}
+										</div>
 									</div>
 								</div>
 							{/each}

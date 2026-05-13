@@ -38,18 +38,27 @@ public class CourseControllerTest {
     @InjectMocks
     CourseController courseController;
 
-    Course course;
+    Course draftCourse;
+    Course publishedCourse;
     CourseCreateDTO courseCreateDTO;
 
     @BeforeEach
     void setUp() {
-        course = new Course(
+        draftCourse = new Course(
                 "auth0|tutor-1",
                 "Music Basics",
                 "Learn the basics of rhythm and melody.",
                 CourseStatus.DRAFT
         );
-        ReflectionTestUtils.setField(course, "id", "course-1");
+        ReflectionTestUtils.setField(draftCourse, "id", "course-1");
+
+        publishedCourse = new Course(
+                "auth0|tutor-1",
+                "Published Music Basics",
+                "A published course.",
+                CourseStatus.PUBLISHED
+        );
+        ReflectionTestUtils.setField(publishedCourse, "id", "course-2");
 
         courseCreateDTO = new CourseCreateDTO();
         ReflectionTestUtils.setField(courseCreateDTO, "title", "Music Basics");
@@ -91,28 +100,33 @@ public class CourseControllerTest {
     }
 
     @Test
-    void shouldReturnAllCourses() {
-        when(courseRepository.findAll()).thenReturn(List.of(course));
+    void shouldReturnOnlyPublishedCourses() {
+        when(courseRepository.findByStatus(CourseStatus.PUBLISHED)).thenReturn(List.of(publishedCourse));
 
         List<Course> result = courseController.getAllCourses();
 
         assertEquals(1, result.size());
-        assertEquals("course-1", result.get(0).getId());
-        assertEquals("Music Basics", result.get(0).getTitle());
+        assertEquals("course-2", result.get(0).getId());
+        assertEquals("Published Music Basics", result.get(0).getTitle());
+        assertEquals(CourseStatus.PUBLISHED, result.get(0).getStatus());
+
+        verify(courseRepository).findByStatus(CourseStatus.PUBLISHED);
+        verify(courseRepository, never()).findAll();
     }
 
     @Test
     void shouldReturnMyCoursesWhenUserIsTutor() {
         when(userService.userHasRole("tutor")).thenReturn(true);
         when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
-        when(courseRepository.findByTutorUserId("auth0|tutor-1")).thenReturn(List.of(course));
+        when(courseRepository.findByTutorUserId("auth0|tutor-1")).thenReturn(List.of(draftCourse, publishedCourse));
 
         ResponseEntity<List<Course>> response = courseController.getMyCourses();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.hasBody());
-        assertEquals(1, response.getBody().size());
+        assertEquals(2, response.getBody().size());
         assertEquals("course-1", response.getBody().get(0).getId());
+        assertEquals("course-2", response.getBody().get(1).getId());
 
         verify(courseRepository).findByTutorUserId("auth0|tutor-1");
     }
@@ -129,15 +143,51 @@ public class CourseControllerTest {
     }
 
     @Test
-    void shouldReturnCourseByIdWhenCourseExists() {
-        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
+    void shouldReturnPublishedCourseByIdWhenCourseExists() {
+        when(courseRepository.findById("course-2")).thenReturn(Optional.of(publishedCourse));
+
+        ResponseEntity<Course> response = courseController.getCourseById("course-2");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("course-2", response.getBody().getId());
+        assertEquals("Published Music Basics", response.getBody().getTitle());
+        assertEquals(CourseStatus.PUBLISHED, response.getBody().getStatus());
+    }
+
+    @Test
+    void shouldReturnDraftCourseByIdWhenTutorOwnsCourse() {
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
 
         ResponseEntity<Course> response = courseController.getCourseById("course-1");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.hasBody());
         assertEquals("course-1", response.getBody().getId());
-        assertEquals("Music Basics", response.getBody().getTitle());
+        assertEquals(CourseStatus.DRAFT, response.getBody().getStatus());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenDraftCourseDoesNotBelongToCurrentTutor() {
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+
+        ResponseEntity<Course> response = courseController.getCourseById("course-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenLearnerRequestsDraftCourseById() {
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Course> response = courseController.getCourseById("course-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
 
     @Test
@@ -147,5 +197,59 @@ public class CourseControllerTest {
         ResponseEntity<Course> response = courseController.getCourseById("course-1");
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void shouldPublishCourseWhenTutorOwnsCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<Course> response = courseController.publishCourse("course-1");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("course-1", response.getBody().getId());
+        assertEquals(CourseStatus.PUBLISHED, response.getBody().getStatus());
+
+        verify(courseRepository).save(draftCourse);
+    }
+
+    @Test
+    void shouldNotPublishCourseWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Course> response = courseController.publishCourse("course-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(courseRepository, never()).findById(any());
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenPublishingCourseThatDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(courseRepository.findById("course-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Course> response = courseController.publishCourse("course-1");
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenPublishingCourseOwnedByAnotherTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+
+        ResponseEntity<Course> response = courseController.publishCourse("course-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(courseRepository, never()).save(any(Course.class));
     }
 }
