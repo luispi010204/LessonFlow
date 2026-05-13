@@ -146,7 +146,7 @@
 						</p>
 					{:else}
 						<div class="list-group">
-							{#each courses as course}
+							{#each courses as course, index}
 								<div class="list-group-item">
 									<div class="d-flex justify-content-between align-items-start gap-3">
 										<div class="w-100">
@@ -177,12 +177,70 @@
 													This course is published and visible to learners.
 												</div>
 											{/if}
+
+											<div class="collapse" id={`edit-course-${index}`}>
+												<div class="border rounded p-3 mb-3">
+													<h6 class="mb-3">Edit Course</h6>
+
+													<form method="POST" action="?/updateCourse">
+														<input type="hidden" name="courseId" value={course.id} />
+
+														<div class="mb-3">
+															<label
+																class="form-label"
+																for={`edit-course-title-${index}`}
+															>
+																Title
+															</label>
+															<input
+																id={`edit-course-title-${index}`}
+																name="title"
+																class="form-control"
+																type="text"
+																value={course.title}
+																required
+															/>
+														</div>
+
+														<div class="mb-3">
+															<label
+																class="form-label"
+																for={`edit-course-description-${index}`}
+															>
+																Description
+															</label>
+															<textarea
+																id={`edit-course-description-${index}`}
+																name="description"
+																class="form-control"
+																rows="4"
+																required
+															>{course.description}</textarea>
+														</div>
+
+														<button type="submit" class="btn btn-primary btn-sm">
+															Save Course Changes
+														</button>
+													</form>
+												</div>
+											</div>
 										</div>
 
 										<div class="d-flex flex-column gap-2 align-items-end">
 											<a href={`/tutor/courses/${course.id}`} class="btn btn-outline-primary btn-sm">
 												Manage Course
 											</a>
+
+											<button
+												class="btn btn-outline-secondary btn-sm"
+												type="button"
+												data-bs-toggle="collapse"
+												data-bs-target={`#edit-course-${index}`}
+												aria-expanded="false"
+												aria-controls={`edit-course-${index}`}
+											>
+												Edit
+											</button>
 
 											{#if course.status === 'DRAFT'}
 												<form method="POST" action="?/publishCourse">

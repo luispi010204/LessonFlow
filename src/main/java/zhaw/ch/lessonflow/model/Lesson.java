@@ -31,4 +31,10 @@ public class Lesson {
 
     @NonNull
     private String meetingLink;
+
+    public void updateDetails(String title, String material, String meetingLink) {
+        this.title = title;
+        this.material = material;
+        this.meetingLink = meetingLink;
+    }
 }

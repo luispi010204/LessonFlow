@@ -34,6 +34,10 @@ public class LessonController {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
+        if (hasInvalidLessonDetails(fDTO)) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         if (!courseService.courseExists(fDTO.getCourseId())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
@@ -59,6 +63,41 @@ public class LessonController {
         return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
     }
 
+    @PutMapping("/lesson/{id}")
+    public ResponseEntity<Lesson> updateLesson(
+            @PathVariable String id,
+            @RequestBody LessonCreateDTO fDTO) {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        Optional<Lesson> lessonData = lessonRepository.findById(id);
+
+        if (lessonData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        if (hasInvalidLessonDetails(fDTO)) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        Lesson lesson = lessonData.get();
+
+        if (!courseService.courseBelongsToTutor(lesson.getCourseId(), userService.getCurrentUserId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        lesson.updateDetails(
+                fDTO.getTitle(),
+                fDTO.getMaterial(),
+                fDTO.getMeetingLink()
+        );
+
+        Lesson savedLesson = lessonRepository.save(lesson);
+        return new ResponseEntity<>(savedLesson, HttpStatus.OK);
+    }
+
     @GetMapping("/lesson")
     public List<Lesson> getAllLessons() {
         return lessonRepository.findAll();
@@ -78,5 +117,11 @@ public class LessonController {
     @GetMapping("/lesson/course/{courseId}")
     public List<Lesson> getLessonsByCourseId(@PathVariable String courseId) {
         return lessonRepository.findByCourseIdOrderByLessonNumberAsc(courseId);
+    }
+
+    private boolean hasInvalidLessonDetails(LessonCreateDTO dto) {
+        return dto.getTitle() == null || dto.getTitle().isBlank()
+                || dto.getMaterial() == null || dto.getMaterial().isBlank()
+                || dto.getMeetingLink() == null || dto.getMeetingLink().isBlank();
     }
 }

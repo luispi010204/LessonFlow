@@ -135,6 +135,52 @@ public class QuizController {
         return new ResponseEntity<>(savedQuiz, HttpStatus.CREATED);
     }
 
+    @PutMapping("/quiz/{id}")
+    public ResponseEntity<Quiz> updateQuiz(
+            @PathVariable String id,
+            @RequestBody QuizCreateDTO fDTO) {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        Optional<Quiz> quizData = quizRepository.findById(id);
+
+        if (quizData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        if (fDTO.getPassPercent() < 1 || fDTO.getPassPercent() > 100) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        if (!isValidQuizQuestions(fDTO.getQuestions())) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        Quiz quiz = quizData.get();
+
+        Optional<Lesson> lessonData = lessonService.getLessonById(quiz.getLessonId());
+
+        if (lessonData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        Lesson lesson = lessonData.get();
+
+        if (!courseService.courseBelongsToTutor(lesson.getCourseId(), userService.getCurrentUserId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        quiz.updateDetails(
+                fDTO.getPassPercent(),
+                fDTO.getQuestions()
+        );
+
+        Quiz savedQuiz = quizRepository.save(quiz);
+        return new ResponseEntity<>(savedQuiz, HttpStatus.OK);
+    }
+
     @GetMapping("/quiz")
     public List<Quiz> getAllQuizzes() {
         return quizRepository.findAll();

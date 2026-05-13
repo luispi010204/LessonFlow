@@ -83,6 +83,41 @@ public class CourseController {
         return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 
+    @PutMapping("/course/{id}")
+    public ResponseEntity<Course> updateCourse(
+            @PathVariable String id,
+            @RequestBody CourseCreateDTO fDTO) {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        Optional<Course> courseData = courseRepository.findById(id);
+
+        if (courseData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        Course course = courseData.get();
+
+        if (!course.getTutorUserId().equals(userService.getCurrentUserId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        if (fDTO.getTitle() == null || fDTO.getTitle().isBlank()
+                || fDTO.getDescription() == null || fDTO.getDescription().isBlank()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        course.updateDetails(
+                fDTO.getTitle(),
+                fDTO.getDescription()
+        );
+
+        Course savedCourse = courseRepository.save(course);
+        return new ResponseEntity<>(savedCourse, HttpStatus.OK);
+    }
+
     @PostMapping("/course/{id}/publish")
     public ResponseEntity<Course> publishCourse(@PathVariable String id) {
 

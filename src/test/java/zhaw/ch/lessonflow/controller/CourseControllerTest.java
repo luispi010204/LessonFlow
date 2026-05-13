@@ -41,6 +41,7 @@ public class CourseControllerTest {
     Course draftCourse;
     Course publishedCourse;
     CourseCreateDTO courseCreateDTO;
+    CourseCreateDTO courseUpdateDTO;
 
     @BeforeEach
     void setUp() {
@@ -63,6 +64,10 @@ public class CourseControllerTest {
         courseCreateDTO = new CourseCreateDTO();
         ReflectionTestUtils.setField(courseCreateDTO, "title", "Music Basics");
         ReflectionTestUtils.setField(courseCreateDTO, "description", "Learn the basics of rhythm and melody.");
+
+        courseUpdateDTO = new CourseCreateDTO();
+        ReflectionTestUtils.setField(courseUpdateDTO, "title", "Updated Music Basics");
+        ReflectionTestUtils.setField(courseUpdateDTO, "description", "Updated course description.");
     }
 
     @Test
@@ -197,6 +202,77 @@ public class CourseControllerTest {
         ResponseEntity<Course> response = courseController.getCourseById("course-1");
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void shouldUpdateCourseWhenTutorOwnsCourse() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<Course> response = courseController.updateCourse("course-1", courseUpdateDTO);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("course-1", response.getBody().getId());
+        assertEquals("Updated Music Basics", response.getBody().getTitle());
+        assertEquals("Updated course description.", response.getBody().getDescription());
+        assertEquals(CourseStatus.DRAFT, response.getBody().getStatus());
+
+        verify(courseRepository).save(draftCourse);
+    }
+
+    @Test
+    void shouldNotUpdateCourseWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<Course> response = courseController.updateCourse("course-1", courseUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(courseRepository, never()).findById(any());
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingCourseThatDoesNotExist() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(courseRepository.findById("course-1")).thenReturn(Optional.empty());
+
+        ResponseEntity<Course> response = courseController.updateCourse("course-1", courseUpdateDTO);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingCourseOwnedByAnotherTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+
+        ResponseEntity<Course> response = courseController.updateCourse("course-1", courseUpdateDTO);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdatingCourseWithBlankTitle() {
+        ReflectionTestUtils.setField(courseUpdateDTO, "title", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(draftCourse));
+
+        ResponseEntity<Course> response = courseController.updateCourse("course-1", courseUpdateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseRepository, never()).save(any(Course.class));
     }
 
     @Test
