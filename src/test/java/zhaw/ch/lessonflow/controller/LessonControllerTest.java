@@ -21,8 +21,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import zhaw.ch.lessonflow.model.Course;
+import zhaw.ch.lessonflow.model.CourseStatus;
+import zhaw.ch.lessonflow.model.Enrollment;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonCreateDTO;
+import zhaw.ch.lessonflow.repository.CourseRepository;
+import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.UserService;
@@ -32,6 +37,12 @@ public class LessonControllerTest {
 
     @Mock
     LessonRepository lessonRepository;
+
+    @Mock
+    CourseRepository courseRepository;
+
+    @Mock
+    EnrollmentRepository enrollmentRepository;
 
     @Mock
     CourseService courseService;
@@ -45,6 +56,8 @@ public class LessonControllerTest {
     Lesson lesson;
     LessonCreateDTO lessonCreateDTO;
     LessonCreateDTO lessonUpdateDTO;
+    Course course;
+    Enrollment enrollment;
 
     @BeforeEach
     void setUp() {
@@ -53,8 +66,7 @@ public class LessonControllerTest {
                 1,
                 "Understanding Rhythm",
                 "Learn about beats, tempo and note values.",
-                "https://meeting.example.com"
-        );
+                "https://meeting.example.com");
         ReflectionTestUtils.setField(lesson, "id", "lesson-1");
 
         lessonCreateDTO = new LessonCreateDTO();
@@ -70,6 +82,19 @@ public class LessonControllerTest {
         ReflectionTestUtils.setField(lessonUpdateDTO, "title", "Updated Rhythm");
         ReflectionTestUtils.setField(lessonUpdateDTO, "material", "Updated lesson material.");
         ReflectionTestUtils.setField(lessonUpdateDTO, "meetingLink", "https://updated-meeting.example.com");
+
+        course = new Course(
+                "auth0|tutor-1",
+                "Music Basics",
+                "Learn the basics of rhythm and melody.",
+                CourseStatus.PUBLISHED);
+        ReflectionTestUtils.setField(course, "id", "course-1");
+
+        enrollment = new Enrollment(
+                "course-1",
+                "auth0|learner-1",
+                "ENROLLED");
+        ReflectionTestUtils.setField(enrollment, "id", "enrollment-1");
     }
 
     @Test
@@ -117,6 +142,34 @@ public class LessonControllerTest {
     @Test
     void shouldNotCreateLessonWhenTitleIsBlank() {
         ReflectionTestUtils.setField(lessonCreateDTO, "title", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+
+        ResponseEntity<Lesson> response = lessonController.createLesson(lessonCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseExists(any());
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldNotCreateLessonWhenCourseIdIsBlank() {
+        ReflectionTestUtils.setField(lessonCreateDTO, "courseId", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+
+        ResponseEntity<Lesson> response = lessonController.createLesson(lessonCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(courseService, never()).courseExists(any());
+        verify(lessonRepository, never()).save(any(Lesson.class));
+    }
+
+    @Test
+    void shouldNotCreateLessonWhenLessonNumberIsInvalid() {
+        ReflectionTestUtils.setField(lessonCreateDTO, "lessonNumber", 0);
 
         when(userService.userHasRole("tutor")).thenReturn(true);
 
@@ -249,19 +302,43 @@ public class LessonControllerTest {
     }
 
     @Test
-    void shouldReturnAllLessons() {
-        when(lessonRepository.findAll()).thenReturn(List.of(lesson));
+    void shouldReturnAllLessonsForTutorCoursesWhenUserIsTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(courseRepository.findByTutorUserId("auth0|tutor-1")).thenReturn(List.of(course));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1")).thenReturn(List.of(lesson));
 
-        List<Lesson> result = lessonController.getAllLessons();
+        ResponseEntity<List<Lesson>> response = lessonController.getAllLessons();
 
-        assertEquals(1, result.size());
-        assertEquals("lesson-1", result.get(0).getId());
-        assertEquals("Understanding Rhythm", result.get(0).getTitle());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("lesson-1", response.getBody().get(0).getId());
+        assertEquals("Understanding Rhythm", response.getBody().get(0).getTitle());
+
+        verify(courseRepository).findByTutorUserId("auth0|tutor-1");
+        verify(lessonRepository).findByCourseIdOrderByLessonNumberAsc("course-1");
+        verify(lessonRepository, never()).findAll();
     }
 
     @Test
-    void shouldReturnLessonByIdWhenLessonExists() {
+    void shouldNotReturnAllLessonsWhenUserIsNotTutor() {
+        when(userService.userHasRole("tutor")).thenReturn(false);
+
+        ResponseEntity<List<Lesson>> response = lessonController.getAllLessons();
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(courseRepository, never()).findByTutorUserId(any());
+        verify(lessonRepository, never()).findAll();
+    }
+
+    @Test
+    void shouldReturnLessonByIdWhenTutorOwnsCourse() {
         when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
 
         ResponseEntity<Lesson> response = lessonController.getLessonById("lesson-1");
 
@@ -269,6 +346,48 @@ public class LessonControllerTest {
         assertTrue(response.hasBody());
         assertEquals("lesson-1", response.getBody().getId());
         assertEquals("Understanding Rhythm", response.getBody().getTitle());
+    }
+
+    @Test
+    void shouldReturnLessonByIdWhenLearnerIsEnrolledInCourse() {
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+        when(userService.userHasRole("tutor")).thenReturn(false);
+        when(userService.userHasRole("learner")).thenReturn(true);
+        when(enrollmentRepository.findByLearnerUserId("auth0|learner-1")).thenReturn(List.of(enrollment));
+
+        ResponseEntity<Lesson> response = lessonController.getLessonById("lesson-1");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals("lesson-1", response.getBody().getId());
+        assertEquals("Understanding Rhythm", response.getBody().getTitle());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenLearnerIsNotEnrolledInLessonCourse() {
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|learner-2");
+        when(userService.userHasRole("tutor")).thenReturn(false);
+        when(userService.userHasRole("learner")).thenReturn(true);
+        when(enrollmentRepository.findByLearnerUserId("auth0|learner-2")).thenReturn(List.of());
+
+        ResponseEntity<Lesson> response = lessonController.getLessonById("lesson-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenTutorDoesNotOwnLessonCourse() {
+        when(lessonRepository.findById("lesson-1")).thenReturn(Optional.of(lesson));
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(courseService.courseBelongsToTutor("course-1", "auth0|other-tutor")).thenReturn(false);
+        when(userService.userHasRole("learner")).thenReturn(false);
+
+        ResponseEntity<Lesson> response = lessonController.getLessonById("lesson-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
     }
 
     @Test
@@ -281,14 +400,64 @@ public class LessonControllerTest {
     }
 
     @Test
-    void shouldReturnLessonsByCourseId() {
+    void shouldReturnLessonsByCourseIdWhenTutorOwnsCourse() {
+        when(courseService.courseExists("course-1")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(userService.userHasRole("tutor")).thenReturn(true);
+        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
         when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
                 .thenReturn(List.of(lesson));
 
-        List<Lesson> result = lessonController.getLessonsByCourseId("course-1");
+        ResponseEntity<List<Lesson>> response = lessonController.getLessonsByCourseId("course-1");
 
-        assertEquals(1, result.size());
-        assertEquals("lesson-1", result.get(0).getId());
-        assertEquals("course-1", result.get(0).getCourseId());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("lesson-1", response.getBody().get(0).getId());
+        assertEquals("course-1", response.getBody().get(0).getCourseId());
+    }
+
+    @Test
+    void shouldReturnLessonsByCourseIdWhenLearnerIsEnrolled() {
+        when(courseService.courseExists("course-1")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+        when(userService.userHasRole("tutor")).thenReturn(false);
+        when(userService.userHasRole("learner")).thenReturn(true);
+        when(enrollmentRepository.findByLearnerUserId("auth0|learner-1")).thenReturn(List.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson));
+
+        ResponseEntity<List<Lesson>> response = lessonController.getLessonsByCourseId("course-1");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.hasBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("lesson-1", response.getBody().get(0).getId());
+        assertEquals("course-1", response.getBody().get(0).getCourseId());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCourseDoesNotExistForLessonsByCourseId() {
+        when(courseService.courseExists("course-1")).thenReturn(false);
+
+        ResponseEntity<List<Lesson>> response = lessonController.getLessonsByCourseId("course-1");
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+        verify(lessonRepository, never()).findByCourseIdOrderByLessonNumberAsc(any());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUserCannotAccessLessonsByCourseId() {
+        when(courseService.courseExists("course-1")).thenReturn(true);
+        when(userService.getCurrentUserId()).thenReturn("auth0|other-user");
+        when(userService.userHasRole("tutor")).thenReturn(false);
+        when(userService.userHasRole("learner")).thenReturn(false);
+
+        ResponseEntity<List<Lesson>> response = lessonController.getLessonsByCourseId("course-1");
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+        verify(lessonRepository, never()).findByCourseIdOrderByLessonNumberAsc(any());
     }
 }

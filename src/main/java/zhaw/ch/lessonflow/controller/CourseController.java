@@ -31,6 +31,11 @@ public class CourseController {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
         }
 
+        if (fDTO.getTitle() == null || fDTO.getTitle().isBlank()
+                || fDTO.getDescription() == null || fDTO.getDescription().isBlank()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         Course fDAO = new Course(
                 userService.getCurrentUserId(),
                 fDTO.getTitle(),

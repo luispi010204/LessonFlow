@@ -49,16 +49,14 @@ public class CourseControllerTest {
                 "auth0|tutor-1",
                 "Music Basics",
                 "Learn the basics of rhythm and melody.",
-                CourseStatus.DRAFT
-        );
+                CourseStatus.DRAFT);
         ReflectionTestUtils.setField(draftCourse, "id", "course-1");
 
         publishedCourse = new Course(
                 "auth0|tutor-1",
                 "Published Music Basics",
                 "A published course.",
-                CourseStatus.PUBLISHED
-        );
+                CourseStatus.PUBLISHED);
         ReflectionTestUtils.setField(publishedCourse, "id", "course-2");
 
         courseCreateDTO = new CourseCreateDTO();
@@ -101,6 +99,34 @@ public class CourseControllerTest {
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldNotCreateCourseWhenTitleIsBlank() {
+        ReflectionTestUtils.setField(courseCreateDTO, "title", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+
+        ResponseEntity<Course> response = courseController.createCourse(courseCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(userService, never()).getCurrentUserId();
+        verify(courseRepository, never()).save(any(Course.class));
+    }
+
+    @Test
+    void shouldNotCreateCourseWhenDescriptionIsBlank() {
+        ReflectionTestUtils.setField(courseCreateDTO, "description", "");
+
+        when(userService.userHasRole("tutor")).thenReturn(true);
+
+        ResponseEntity<Course> response = courseController.createCourse(courseCreateDTO);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+        verify(userService, never()).getCurrentUserId();
         verify(courseRepository, never()).save(any(Course.class));
     }
 
