@@ -1,5 +1,6 @@
 package zhaw.ch.lessonflow.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,10 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import zhaw.ch.lessonflow.model.Enrollment;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.Quiz;
 import zhaw.ch.lessonflow.model.QuizCreateDTO;
 import zhaw.ch.lessonflow.model.QuizQuestion;
+import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.repository.QuizRepository;
 import zhaw.ch.lessonflow.services.AiQuizService;
 import zhaw.ch.lessonflow.services.CourseService;
@@ -24,6 +27,9 @@ public class QuizController {
 
     @Autowired
     QuizRepository quizRepository;
+
+    @Autowired
+    EnrollmentRepository enrollmentRepository;
 
     @Autowired
     LessonService lessonService;
@@ -42,6 +48,10 @@ public class QuizController {
 
         if (!userService.userHasRole("tutor")) {
             return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        if (fDTO.getLessonId() == null || fDTO.getLessonId().isBlank()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
         Optional<Lesson> lessonData = lessonService.getLessonById(fDTO.getLessonId());
@@ -182,23 +192,58 @@ public class QuizController {
     }
 
     @GetMapping("/quiz")
-    public List<Quiz> getAllQuizzes() {
-        return quizRepository.findAll();
+    public ResponseEntity<List<Quiz>> getAllQuizzes() {
+
+        if (!userService.userHasRole("tutor")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
+        String currentUserId = userService.getCurrentUserId();
+        List<Quiz> accessibleQuizzes = new ArrayList<>();
+
+        for (Quiz quiz : quizRepository.findAll()) {
+            Optional<Lesson> lessonData = lessonService.getLessonById(quiz.getLessonId());
+
+            if (lessonData.isPresent()
+                    && courseService.courseBelongsToTutor(lessonData.get().getCourseId(), currentUserId)) {
+                accessibleQuizzes.add(quiz);
+            }
+        }
+
+        return new ResponseEntity<>(accessibleQuizzes, HttpStatus.OK);
     }
 
     @GetMapping("/quiz/{id}")
     public ResponseEntity<Quiz> getQuizById(@PathVariable String id) {
-        Optional<Quiz> quiz = quizRepository.findById(id);
+        Optional<Quiz> quizData = quizRepository.findById(id);
 
-        if (quiz.isPresent()) {
-            return new ResponseEntity<>(quiz.get(), HttpStatus.OK);
-        } else {
+        if (quizData.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+
+        Quiz quiz = quizData.get();
+
+        if (canAccessQuiz(quiz)) {
+            return new ResponseEntity<>(quiz, HttpStatus.OK);
+        }
+
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 
     @GetMapping("/quiz/lesson/{lessonId}")
     public ResponseEntity<Quiz> getQuizByLessonId(@PathVariable String lessonId) {
+        Optional<Lesson> lessonData = lessonService.getLessonById(lessonId);
+
+        if (lessonData.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        Lesson lesson = lessonData.get();
+
+        if (!canAccessCourse(lesson.getCourseId())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+
         Optional<Quiz> quiz = quizRepository.findByLessonId(lessonId);
 
         if (quiz.isPresent()) {
@@ -206,6 +251,41 @@ public class QuizController {
         } else {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+    }
+
+    private boolean canAccessQuiz(Quiz quiz) {
+        Optional<Lesson> lessonData = lessonService.getLessonById(quiz.getLessonId());
+
+        if (lessonData.isEmpty()) {
+            return false;
+        }
+
+        return canAccessCourse(lessonData.get().getCourseId());
+    }
+
+    private boolean canAccessCourse(String courseId) {
+        String currentUserId = userService.getCurrentUserId();
+
+        if (userService.userHasRole("tutor")
+                && courseService.courseBelongsToTutor(courseId, currentUserId)) {
+            return true;
+        }
+
+        return userService.userHasRole("learner")
+                && learnerIsEnrolledInCourse(courseId, currentUserId);
+    }
+
+    private boolean learnerIsEnrolledInCourse(String courseId, String learnerUserId) {
+        List<Enrollment> enrollments = enrollmentRepository.findByLearnerUserId(learnerUserId);
+
+        for (Enrollment enrollment : enrollments) {
+            if (enrollment.getCourseId().equals(courseId)
+                    && "ENROLLED".equals(enrollment.getStatus())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean isValidQuizQuestions(List<QuizQuestion> questions) {

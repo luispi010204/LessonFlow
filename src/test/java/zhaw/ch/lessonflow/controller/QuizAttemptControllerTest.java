@@ -38,349 +38,388 @@ import zhaw.ch.lessonflow.services.UserService;
 @ExtendWith(MockitoExtension.class)
 public class QuizAttemptControllerTest {
 
-    @Mock
-    QuizAttemptRepository quizAttemptRepository;
-
-    @Mock
-    QuizAttemptService quizAttemptService;
-
-    @Mock
-    QuizRepository quizRepository;
-
-    @Mock
-    EnrollmentService enrollmentService;
-
-    @Mock
-    LessonService lessonService;
-
-    @Mock
-    CourseService courseService;
-
-    @Mock
-    UserService userService;
-
-    @InjectMocks
-    QuizAttemptController quizAttemptController;
-
-    QuizAttempt quizAttempt;
-    QuizAttemptCreateDTO quizAttemptCreateDTO;
-    Enrollment enrollment;
-    Lesson lesson;
-    Quiz quiz;
-
-    @BeforeEach
-    void setUp() {
-        quizAttempt = new QuizAttempt(
-                "quiz-1",
-                "enrollment-1",
-                "lesson-1",
-                100.0,
-                true,
-                List.of(1, 1)
-        );
-        ReflectionTestUtils.setField(quizAttempt, "id", "attempt-1");
-
-        quizAttemptCreateDTO = new QuizAttemptCreateDTO();
-        ReflectionTestUtils.setField(quizAttemptCreateDTO, "quizId", "quiz-1");
-        ReflectionTestUtils.setField(quizAttemptCreateDTO, "enrollmentId", "enrollment-1");
-        ReflectionTestUtils.setField(quizAttemptCreateDTO, "lessonId", "lesson-1");
-        ReflectionTestUtils.setField(quizAttemptCreateDTO, "selectedOptionIndexes", List.of(1, 1));
-
-        enrollment = new Enrollment(
-                "course-1",
-                "auth0|learner-1",
-                "ENROLLED"
-        );
-        ReflectionTestUtils.setField(enrollment, "id", "enrollment-1");
-
-        lesson = new Lesson(
-                "course-1",
-                1,
-                "Understanding Rhythm",
-                "Learn about beats, tempo and note values.",
-                "https://meeting.example.com"
-        );
-        ReflectionTestUtils.setField(lesson, "id", "lesson-1");
-
-        QuizQuestion question1 = new QuizQuestion(
-                "Which keyword should be used for a value that should not be reassigned?",
-                List.of("let", "const", "var", "function"),
-                1
-        );
-
-        QuizQuestion question2 = new QuizQuestion(
-                "What data type is used for true or false values?",
-                List.of("String", "Boolean", "Number", "Array"),
-                1
-        );
-
-        quiz = new Quiz(
-                "lesson-1",
-                70,
-                List.of(question1, question2)
-        );
-        ReflectionTestUtils.setField(quiz, "id", "quiz-1");
-    }
-
-    @Test
-    void shouldReturnQuizAttemptByIdWhenLearnerOwnsEnrollment() {
-        when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
-        when(userService.userHasRole("learner")).thenReturn(true);
-
-        ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals("attempt-1", response.getBody().getId());
-        assertEquals("quiz-1", response.getBody().getQuizId());
-        assertEquals("enrollment-1", response.getBody().getEnrollmentId());
-        assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
-    }
-
-    @Test
-    void shouldReturnQuizAttemptByIdWhenTutorOwnsCourse() {
-        when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
-        when(userService.userHasRole("learner")).thenReturn(false);
-        when(userService.userHasRole("tutor")).thenReturn(true);
-        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+        @Mock
+        QuizAttemptRepository quizAttemptRepository;
+
+        @Mock
+        QuizAttemptService quizAttemptService;
+
+        @Mock
+        QuizRepository quizRepository;
+
+        @Mock
+        EnrollmentService enrollmentService;
+
+        @Mock
+        LessonService lessonService;
+
+        @Mock
+        CourseService courseService;
+
+        @Mock
+        UserService userService;
+
+        @InjectMocks
+        QuizAttemptController quizAttemptController;
+
+        QuizAttempt quizAttempt;
+        QuizAttemptCreateDTO quizAttemptCreateDTO;
+        Enrollment enrollment;
+        Lesson lesson;
+        Quiz quiz;
+
+        @BeforeEach
+        void setUp() {
+                quizAttempt = new QuizAttempt(
+                                "quiz-1",
+                                "enrollment-1",
+                                "lesson-1",
+                                100.0,
+                                true,
+                                List.of(1, 1));
+                ReflectionTestUtils.setField(quizAttempt, "id", "attempt-1");
+
+                quizAttemptCreateDTO = new QuizAttemptCreateDTO();
+                ReflectionTestUtils.setField(quizAttemptCreateDTO, "quizId", "quiz-1");
+                ReflectionTestUtils.setField(quizAttemptCreateDTO, "enrollmentId", "enrollment-1");
+                ReflectionTestUtils.setField(quizAttemptCreateDTO, "lessonId", "lesson-1");
+                ReflectionTestUtils.setField(quizAttemptCreateDTO, "selectedOptionIndexes", List.of(1, 1));
+
+                enrollment = new Enrollment(
+                                "course-1",
+                                "auth0|learner-1",
+                                "ENROLLED");
+                ReflectionTestUtils.setField(enrollment, "id", "enrollment-1");
+
+                lesson = new Lesson(
+                                "course-1",
+                                1,
+                                "Understanding Rhythm",
+                                "Learn about beats, tempo and note values.",
+                                "https://meeting.example.com");
+                ReflectionTestUtils.setField(lesson, "id", "lesson-1");
+
+                QuizQuestion question1 = new QuizQuestion(
+                                "Which keyword should be used for a value that should not be reassigned?",
+                                List.of("let", "const", "var", "function"),
+                                1);
+
+                QuizQuestion question2 = new QuizQuestion(
+                                "What data type is used for true or false values?",
+                                List.of("String", "Boolean", "Number", "Array"),
+                                1);
+
+                quiz = new Quiz(
+                                "lesson-1",
+                                70,
+                                List.of(question1, question2));
+                ReflectionTestUtils.setField(quiz, "id", "quiz-1");
+        }
+
+        @Test
+        void shouldReturnQuizAttemptByIdWhenLearnerOwnsEnrollment() {
+                when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+                when(userService.userHasRole("learner")).thenReturn(true);
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
+
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals("attempt-1", response.getBody().getId());
+                assertEquals("quiz-1", response.getBody().getQuizId());
+                assertEquals("enrollment-1", response.getBody().getEnrollmentId());
+                assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
+        }
+
+        @Test
+        void shouldReturnQuizAttemptByIdWhenTutorOwnsCourse() {
+                when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+                when(userService.userHasRole("learner")).thenReturn(false);
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
 
-        ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
+                ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals("attempt-1", response.getBody().getId());
-    }
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals("attempt-1", response.getBody().getId());
+        }
 
-    @Test
-    void shouldReturnNotFoundWhenQuizAttemptDoesNotExist() {
-        when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.empty());
+        @Test
+        void shouldReturnNotFoundWhenQuizAttemptDoesNotExist() {
+                when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.empty());
 
-        ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
+                ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 
-        verify(enrollmentService, never()).getEnrollmentById(anyString());
-    }
+                verify(enrollmentService, never()).getEnrollmentById(anyString());
+        }
 
-    @Test
-    void shouldReturnForbiddenWhenUserCannotAccessQuizAttemptEnrollment() {
-        when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|other-user");
-        when(userService.userHasRole("learner")).thenReturn(false);
-        when(userService.userHasRole("tutor")).thenReturn(false);
+        @Test
+        void shouldReturnForbiddenWhenUserCannotAccessQuizAttemptEnrollment() {
+                when(quizAttemptRepository.findById("attempt-1")).thenReturn(Optional.of(quizAttempt));
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|other-user");
+                when(userService.userHasRole("learner")).thenReturn(false);
+                when(userService.userHasRole("tutor")).thenReturn(false);
 
-        ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
+                ResponseEntity<QuizAttempt> response = quizAttemptController.getQuizAttemptById("attempt-1");
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-    }
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        }
 
-    @Test
-    void shouldReturnQuizAttemptsByQuizIdWhenTutorCanAccessLesson() {
-        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
-        when(userService.userHasRole("tutor")).thenReturn(true);
-        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
-        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
-        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
-        when(quizAttemptRepository.findByQuizId("quiz-1")).thenReturn(List.of(quizAttempt));
+        @Test
+        void shouldReturnQuizAttemptsByQuizIdWhenTutorCanAccessLesson() {
+                when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+                when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+                when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+                when(quizAttemptRepository.findByQuizId("quiz-1")).thenReturn(List.of(quizAttempt));
 
-        ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("attempt-1", response.getBody().get(0).getId());
-        assertEquals("quiz-1", response.getBody().get(0).getQuizId());
-    }
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals(1, response.getBody().size());
+                assertEquals("attempt-1", response.getBody().get(0).getId());
+                assertEquals("quiz-1", response.getBody().get(0).getQuizId());
+        }
 
-    @Test
-    void shouldReturnNotFoundWhenQuizDoesNotExistForQuizAttemptsByQuizId() {
-        when(quizRepository.findById("quiz-1")).thenReturn(Optional.empty());
+        @Test
+        void shouldReturnNotFoundWhenQuizDoesNotExistForQuizAttemptsByQuizId() {
+                when(quizRepository.findById("quiz-1")).thenReturn(Optional.empty());
 
-        ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 
-        verify(quizAttemptRepository, never()).findByQuizId(anyString());
-    }
+                verify(quizAttemptRepository, never()).findByQuizId(anyString());
+        }
 
-    @Test
-    void shouldReturnForbiddenWhenTutorCannotAccessQuizLesson() {
-        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
-        when(userService.userHasRole("tutor")).thenReturn(false);
+        @Test
+        void shouldReturnForbiddenWhenTutorCannotAccessQuizLesson() {
+                when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+                when(userService.userHasRole("tutor")).thenReturn(false);
 
-        ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 
-        verify(quizAttemptRepository, never()).findByQuizId(anyString());
-    }
+                verify(quizAttemptRepository, never()).findByQuizId(anyString());
+        }
 
-    @Test
-    void shouldReturnQuizAttemptsByEnrollmentIdWhenLearnerOwnsEnrollment() {
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
-        when(userService.userHasRole("learner")).thenReturn(true);
-        when(quizAttemptRepository.findByEnrollmentId("enrollment-1")).thenReturn(List.of(quizAttempt));
+        @Test
+        void shouldReturnQuizAttemptsByEnrollmentIdWhenLearnerOwnsEnrollment() {
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+                when(userService.userHasRole("learner")).thenReturn(true);
+                when(quizAttemptRepository.findByEnrollmentId("enrollment-1")).thenReturn(List.of(quizAttempt));
 
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByEnrollmentId("enrollment-1");
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("enrollment-1", response.getBody().get(0).getEnrollmentId());
-    }
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByEnrollmentId("enrollment-1");
 
-    @Test
-    void shouldReturnNotFoundWhenEnrollmentDoesNotExistForAttemptsByEnrollmentId() {
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.empty());
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals(1, response.getBody().size());
+                assertEquals("enrollment-1", response.getBody().get(0).getEnrollmentId());
+        }
 
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByEnrollmentId("enrollment-1");
+        @Test
+        void shouldReturnNotFoundWhenEnrollmentDoesNotExistForAttemptsByEnrollmentId() {
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.empty());
 
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByEnrollmentId("enrollment-1");
 
-        verify(quizAttemptRepository, never()).findByEnrollmentId(anyString());
-    }
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
 
-    @Test
-    void shouldReturnForbiddenWhenUserCannotAccessEnrollmentAttempts() {
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|other-user");
-        when(userService.userHasRole("learner")).thenReturn(false);
-        when(userService.userHasRole("tutor")).thenReturn(false);
+                verify(quizAttemptRepository, never()).findByEnrollmentId(anyString());
+        }
 
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByEnrollmentId("enrollment-1");
+        @Test
+        void shouldReturnForbiddenWhenUserCannotAccessEnrollmentAttempts() {
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|other-user");
+                when(userService.userHasRole("learner")).thenReturn(false);
+                when(userService.userHasRole("tutor")).thenReturn(false);
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-
-        verify(quizAttemptRepository, never()).findByEnrollmentId(anyString());
-    }
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByEnrollmentId("enrollment-1");
 
-    @Test
-    void shouldReturnQuizAttemptsByLessonIdWhenTutorCanAccessLesson() {
-        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
-        when(userService.userHasRole("tutor")).thenReturn(true);
-        when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
-        when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
-        when(quizAttemptRepository.findByLessonId("lesson-1")).thenReturn(List.of(quizAttempt));
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
 
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByLessonId("lesson-1");
+                verify(quizAttemptRepository, never()).findByEnrollmentId(anyString());
+        }
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals("lesson-1", response.getBody().get(0).getLessonId());
-    }
-
-    @Test
-    void shouldReturnNotFoundWhenLessonDoesNotExistForAttemptsByLessonId() {
-        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.empty());
-
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByLessonId("lesson-1");
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-
-        verify(quizAttemptRepository, never()).findByLessonId(anyString());
-    }
-
-    @Test
-    void shouldReturnForbiddenWhenTutorCannotAccessLessonAttempts() {
-        when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
-        when(userService.userHasRole("tutor")).thenReturn(false);
-
-        ResponseEntity<List<QuizAttempt>> response =
-                quizAttemptController.getQuizAttemptsByLessonId("lesson-1");
-
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-
-        verify(quizAttemptRepository, never()).findByLessonId(anyString());
-    }
-
-    @Test
-    void shouldSubmitQuizAttemptWhenLearnerOwnsEnrollmentAndServiceReturnsAttempt() {
-        when(userService.userHasRole("learner")).thenReturn(true);
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
-        when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|learner-1"))
-                .thenReturn(true);
-        when(quizAttemptService.submitQuizAttempt(any(QuizAttemptCreateDTO.class)))
-                .thenReturn(Optional.of(quizAttempt));
-
-        ResponseEntity<QuizAttempt> response =
-                quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
-
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertTrue(response.hasBody());
-        assertEquals("attempt-1", response.getBody().getId());
-        assertEquals(100.0, response.getBody().getScorePercent());
-        assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
-        assertTrue(response.getBody().isPassed());
-    }
-
-    @Test
-    void shouldReturnForbiddenWhenSubmitterIsNotLearner() {
-        when(userService.userHasRole("learner")).thenReturn(false);
-
-        ResponseEntity<QuizAttempt> response =
-                quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
-
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-
-        verify(enrollmentService, never()).getEnrollmentById(anyString());
-        verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
-    }
-
-    @Test
-    void shouldReturnBadRequestWhenSubmitEnrollmentDoesNotExist() {
-        when(userService.userHasRole("learner")).thenReturn(true);
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.empty());
-
-        ResponseEntity<QuizAttempt> response =
-                quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-
-        verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
-    }
-
-    @Test
-    void shouldReturnForbiddenWhenSubmitEnrollmentDoesNotBelongToLearner() {
-        when(userService.userHasRole("learner")).thenReturn(true);
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|other-learner");
-        when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|other-learner"))
-                .thenReturn(false);
-
-        ResponseEntity<QuizAttempt> response =
-                quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
-
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-
-        verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
-    }
-
-    @Test
-    void shouldReturnBadRequestWhenSubmitQuizAttemptServiceReturnsEmpty() {
-        when(userService.userHasRole("learner")).thenReturn(true);
-        when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
-        when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
-        when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|learner-1"))
-                .thenReturn(true);
-        when(quizAttemptService.submitQuizAttempt(any(QuizAttemptCreateDTO.class)))
-                .thenReturn(Optional.empty());
-
-        ResponseEntity<QuizAttempt> response =
-                quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    }
+        @Test
+        void shouldReturnQuizAttemptsByLessonIdWhenTutorCanAccessLesson() {
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+                when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+                when(quizAttemptRepository.findByLessonId("lesson-1")).thenReturn(List.of(quizAttempt));
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByLessonId("lesson-1");
+
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals(1, response.getBody().size());
+                assertEquals("lesson-1", response.getBody().get(0).getLessonId());
+        }
+
+        @Test
+        void shouldReturnNotFoundWhenLessonDoesNotExistForAttemptsByLessonId() {
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.empty());
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByLessonId("lesson-1");
+
+                assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+
+                verify(quizAttemptRepository, never()).findByLessonId(anyString());
+        }
+
+        @Test
+        void shouldReturnForbiddenWhenTutorCannotAccessLessonAttempts() {
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+                when(userService.userHasRole("tutor")).thenReturn(false);
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByLessonId("lesson-1");
+
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+                verify(quizAttemptRepository, never()).findByLessonId(anyString());
+        }
+
+        @Test
+        void shouldSubmitQuizAttemptWhenLearnerOwnsEnrollmentAndServiceReturnsAttempt() {
+                when(userService.userHasRole("learner")).thenReturn(true);
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+                when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|learner-1"))
+                                .thenReturn(true);
+                when(quizAttemptService.submitQuizAttempt(any(QuizAttemptCreateDTO.class)))
+                                .thenReturn(Optional.of(quizAttempt));
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
+
+                assertEquals(HttpStatus.CREATED, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals("attempt-1", response.getBody().getId());
+                assertEquals(100.0, response.getBody().getScorePercent());
+                assertEquals(List.of(1, 1), response.getBody().getSelectedOptionIndexes());
+                assertTrue(response.getBody().isPassed());
+        }
+
+        @Test
+        void shouldReturnForbiddenWhenSubmitterIsNotLearner() {
+                when(userService.userHasRole("learner")).thenReturn(false);
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
+
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+                verify(enrollmentService, never()).getEnrollmentById(anyString());
+                verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
+        }
+
+        @Test
+        void shouldReturnBadRequestWhenSubmitEnrollmentDoesNotExist() {
+                when(userService.userHasRole("learner")).thenReturn(true);
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.empty());
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+
+                verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
+        }
+
+        @Test
+        void shouldReturnForbiddenWhenSubmitEnrollmentDoesNotBelongToLearner() {
+                when(userService.userHasRole("learner")).thenReturn(true);
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|other-learner");
+                when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|other-learner"))
+                                .thenReturn(false);
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
+
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+                verify(quizAttemptService, never()).submitQuizAttempt(any(QuizAttemptCreateDTO.class));
+        }
+
+        @Test
+        void shouldReturnBadRequestWhenSubmitQuizAttemptServiceReturnsEmpty() {
+                when(userService.userHasRole("learner")).thenReturn(true);
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+                when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|learner-1"))
+                                .thenReturn(true);
+                when(quizAttemptService.submitQuizAttempt(any(QuizAttemptCreateDTO.class)))
+                                .thenReturn(Optional.empty());
+
+                ResponseEntity<QuizAttempt> response = quizAttemptController.submitQuizAttempt(quizAttemptCreateDTO);
+
+                assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        }
+
+        @Test
+        void shouldReturnQuizAttemptsByEnrollmentIdWhenTutorOwnsCourse() {
+                when(enrollmentService.getEnrollmentById("enrollment-1")).thenReturn(Optional.of(enrollment));
+                when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+                when(userService.userHasRole("learner")).thenReturn(false);
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(courseService.courseBelongsToTutor("course-1", "auth0|tutor-1")).thenReturn(true);
+                when(quizAttemptRepository.findByEnrollmentId("enrollment-1")).thenReturn(List.of(quizAttempt));
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByEnrollmentId("enrollment-1");
+
+                assertEquals(HttpStatus.OK, response.getStatusCode());
+                assertTrue(response.hasBody());
+                assertEquals(1, response.getBody().size());
+                assertEquals("attempt-1", response.getBody().get(0).getId());
+                assertEquals("enrollment-1", response.getBody().get(0).getEnrollmentId());
+        }
+
+        @Test
+        void shouldReturnForbiddenWhenTutorDoesNotOwnCourseForQuizAttemptsByQuizId() {
+                when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+                when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+                when(courseService.courseBelongsToTutor("course-1", "auth0|other-tutor")).thenReturn(false);
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController.getQuizAttemptsByQuizId("quiz-1");
+
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+                verify(quizAttemptRepository, never()).findByQuizId(anyString());
+        }
+
+        @Test
+        void shouldReturnForbiddenWhenTutorDoesNotOwnCourseForLessonAttempts() {
+                when(lessonService.getLessonById("lesson-1")).thenReturn(Optional.of(lesson));
+                when(userService.userHasRole("tutor")).thenReturn(true);
+                when(userService.getCurrentUserId()).thenReturn("auth0|other-tutor");
+                when(courseService.courseBelongsToTutor("course-1", "auth0|other-tutor")).thenReturn(false);
+
+                ResponseEntity<List<QuizAttempt>> response = quizAttemptController
+                                .getQuizAttemptsByLessonId("lesson-1");
+
+                assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+
+                verify(quizAttemptRepository, never()).findByLessonId(anyString());
+        }
+
 }
