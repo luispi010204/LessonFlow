@@ -19,7 +19,14 @@
 
 <nav class="navbar navbar-expand-lg bg-light border-bottom">
 	<div class="container-fluid">
-		<a class="navbar-brand fw-bold" href="/">LessonFlow</a>
+		<a class="navbar-brand lessonflow-brand fw-bold" href="/">
+	<img
+		src="/LessonFlowLogo_small.png"
+		alt="LessonFlow logo"
+		class="navbar-logo"
+	/>
+	<span class="lessonflow-brand-text">LessonFlow</span>
+</a>
 
 		<button
 			class="navbar-toggler"
@@ -81,3 +88,36 @@
 <main class="container mt-4">
 	{@render children()}
 </main>
+
+<style>
+.lessonflow-brand {
+	position: relative;
+	display: flex;
+	align-items: center;
+	height: 42px;
+	padding-left: 76px;
+	overflow: visible;
+}
+
+.navbar-logo {
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 135px;
+	height: 135px;
+	object-fit: contain;
+	transform: translateY(-50%) translateX(-30px);
+	
+
+	pointer-events: none;
+}
+
+.lessonflow-brand-text {
+	line-height: 1;
+}
+
+.navbar {
+	min-height: 56px;
+	overflow: visible;
+}
+</style>
