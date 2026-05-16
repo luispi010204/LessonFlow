@@ -31,6 +31,7 @@ import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.UserService;
+import zhaw.ch.lessonflow.services.EnrollmentService;
 
 @ExtendWith(MockitoExtension.class)
 public class LessonControllerTest {
@@ -49,6 +50,9 @@ public class LessonControllerTest {
 
     @Mock
     UserService userService;
+
+    @Mock
+    EnrollmentService enrollmentService;
 
     @InjectMocks
     LessonController lessonController;
@@ -123,6 +127,7 @@ public class LessonControllerTest {
         assertEquals("https://meeting.example.com", response.getBody().getMeetingLink());
 
         verify(lessonRepository).save(any(Lesson.class));
+        verify(enrollmentService).createProgressForNewLessonForExistingEnrollments(any(Lesson.class));
     }
 
     @Test

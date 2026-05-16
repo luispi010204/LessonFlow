@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import zhaw.ch.lessonflow.model.Enrollment;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonProgress;
 import zhaw.ch.lessonflow.model.LessonProgressState;
@@ -21,6 +22,9 @@ public class LessonProgressService {
 
     @Autowired
     LessonRepository lessonRepository;
+
+    @Autowired
+    EnrollmentService enrollmentService;
 
     public Optional<LessonProgress> markMaterialDone(String progressId) {
         Optional<LessonProgress> progressData = lessonProgressRepository.findById(progressId);
@@ -114,14 +118,27 @@ public class LessonProgressService {
     }
 
     public Optional<Lesson> getCurrentLesson(String enrollmentId) {
-        List<LessonProgress> progressList = lessonProgressRepository.findByEnrollmentId(enrollmentId);
+        enrollmentService.syncMissingProgressForEnrollment(enrollmentId);
 
-        for (LessonProgress progress : progressList) {
-            if (progress.getState() == LessonProgressState.UNLOCKED
-                    || progress.getState() == LessonProgressState.MATERIAL_DONE
-                    || progress.getState() == LessonProgressState.MEETING_DONE) {
+        Optional<Enrollment> enrollmentData = enrollmentService.getEnrollmentById(enrollmentId);
 
-                return lessonRepository.findById(progress.getLessonId());
+        if (enrollmentData.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Enrollment enrollment = enrollmentData.get();
+
+        List<Lesson> lessons = lessonRepository.findByCourseIdOrderByLessonNumberAsc(
+                enrollment.getCourseId());
+
+        for (Lesson lesson : lessons) {
+            Optional<LessonProgress> progressData =
+                    lessonProgressRepository.findByEnrollmentIdAndLessonId(
+                            enrollmentId,
+                            lesson.getId());
+
+            if (progressData.isPresent() && isCurrentProgressState(progressData.get().getState())) {
+                return Optional.of(lesson);
             }
         }
 
@@ -129,22 +146,44 @@ public class LessonProgressService {
     }
 
     public Optional<ProgressSummaryDTO> getProgressSummary(String enrollmentId) {
-        List<LessonProgress> progressList = lessonProgressRepository.findByEnrollmentId(enrollmentId);
+        enrollmentService.syncMissingProgressForEnrollment(enrollmentId);
 
-        if (progressList.isEmpty()) {
+        Optional<Enrollment> enrollmentData = enrollmentService.getEnrollmentById(enrollmentId);
+
+        if (enrollmentData.isEmpty()) {
             return Optional.empty();
         }
 
-        int totalLessons = progressList.size();
+        Enrollment enrollment = enrollmentData.get();
+
+        List<Lesson> lessons = lessonRepository.findByCourseIdOrderByLessonNumberAsc(
+                enrollment.getCourseId());
+
+        if (lessons.isEmpty()) {
+            return Optional.empty();
+        }
+
+        int totalLessons = lessons.size();
         int passedLessons = 0;
         String currentLessonId = null;
 
-        for (LessonProgress progress : progressList) {
+        for (Lesson lesson : lessons) {
+            Optional<LessonProgress> progressData =
+                    lessonProgressRepository.findByEnrollmentIdAndLessonId(
+                            enrollmentId,
+                            lesson.getId());
+
+            if (progressData.isEmpty()) {
+                continue;
+            }
+
+            LessonProgress progress = progressData.get();
+
             if (progress.getState() == LessonProgressState.PASSED) {
                 passedLessons++;
             }
 
-            if (progress.getState() == LessonProgressState.UNLOCKED && currentLessonId == null) {
+            if (currentLessonId == null && isCurrentProgressState(progress.getState())) {
                 currentLessonId = progress.getLessonId();
             }
         }
@@ -155,5 +194,11 @@ public class LessonProgressService {
                 currentLessonId);
 
         return Optional.of(summary);
+    }
+
+    private boolean isCurrentProgressState(LessonProgressState state) {
+        return state == LessonProgressState.UNLOCKED
+                || state == LessonProgressState.MATERIAL_DONE
+                || state == LessonProgressState.MEETING_DONE;
     }
 }
