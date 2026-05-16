@@ -3,11 +3,14 @@ package zhaw.ch.lessonflow.services;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,8 +67,14 @@ public class EnrollmentServiceTest {
     @Test
     void shouldCreateEnrollmentAndInitializeLessonProgress() {
         when(enrollmentRepository.save(any(Enrollment.class))).thenReturn(enrollment);
-        when(lessonRepository.findByCourseId("course-1"))
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
                 .thenReturn(List.of(lesson1, lesson2, lesson3));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(lessonRepository.findByCourseIdAndLessonNumber("course-1", 1))
+                .thenReturn(Optional.of(lesson1));
+        when(lessonRepository.findByCourseIdAndLessonNumber("course-1", 2))
+                .thenReturn(Optional.of(lesson2));
 
         Enrollment result = enrollmentService.createEnrollmentWithProgress(enrollment);
 
@@ -93,5 +102,115 @@ public class EnrollmentServiceTest {
         assertEquals("enrollment-1", savedProgress.get(2).getEnrollmentId());
         assertEquals("lesson-3", savedProgress.get(2).getLessonId());
         assertEquals(LessonProgressState.LOCKED, savedProgress.get(2).getState());
+    }
+
+    @Test
+    void shouldCreateProgressForNewLessonForExistingEnrollments() {
+        when(enrollmentRepository.findByCourseId("course-1"))
+                .thenReturn(List.of(enrollment));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-2"))
+                .thenReturn(Optional.empty());
+        when(lessonRepository.findByCourseIdAndLessonNumber("course-1", 1))
+                .thenReturn(Optional.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.empty());
+
+        enrollmentService.createProgressForNewLessonForExistingEnrollments(lesson2);
+
+        ArgumentCaptor<LessonProgress> captor = ArgumentCaptor.forClass(LessonProgress.class);
+        verify(lessonProgressRepository).save(captor.capture());
+
+        LessonProgress savedProgress = captor.getValue();
+
+        assertEquals("enrollment-1", savedProgress.getEnrollmentId());
+        assertEquals("lesson-2", savedProgress.getLessonId());
+        assertEquals(LessonProgressState.LOCKED, savedProgress.getState());
+        assertEquals(false, savedProgress.isMeetingConfirmed());
+        assertEquals(0, savedProgress.getQuizAttemptsCount());
+    }
+
+    @Test
+    void shouldUnlockNewLessonWhenPreviousLessonIsAlreadyPassed() {
+        LessonProgress previousProgress = new LessonProgress(
+                "enrollment-1",
+                "lesson-1",
+                LessonProgressState.PASSED,
+                true,
+                1
+        );
+        ReflectionTestUtils.setField(previousProgress, "id", "progress-1");
+
+        when(enrollmentRepository.findByCourseId("course-1"))
+                .thenReturn(List.of(enrollment));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-2"))
+                .thenReturn(Optional.empty());
+        when(lessonRepository.findByCourseIdAndLessonNumber("course-1", 1))
+                .thenReturn(Optional.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(previousProgress));
+
+        enrollmentService.createProgressForNewLessonForExistingEnrollments(lesson2);
+
+        ArgumentCaptor<LessonProgress> captor = ArgumentCaptor.forClass(LessonProgress.class);
+        verify(lessonProgressRepository).save(captor.capture());
+
+        LessonProgress savedProgress = captor.getValue();
+
+        assertEquals("enrollment-1", savedProgress.getEnrollmentId());
+        assertEquals("lesson-2", savedProgress.getLessonId());
+        assertEquals(LessonProgressState.UNLOCKED, savedProgress.getState());
+    }
+
+    @Test
+    void shouldNotCreateDuplicateProgressForExistingEnrollmentAndLesson() {
+        LessonProgress existingProgress = new LessonProgress(
+                "enrollment-1",
+                "lesson-2",
+                LessonProgressState.LOCKED,
+                false,
+                0
+        );
+        ReflectionTestUtils.setField(existingProgress, "id", "progress-2");
+
+        when(enrollmentRepository.findByCourseId("course-1"))
+                .thenReturn(List.of(enrollment));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-2"))
+                .thenReturn(Optional.of(existingProgress));
+
+        enrollmentService.createProgressForNewLessonForExistingEnrollments(lesson2);
+
+        verify(lessonProgressRepository, never()).save(any(LessonProgress.class));
+    }
+
+    @Test
+    void shouldSyncMissingProgressForEnrollment() {
+        when(enrollmentRepository.findById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.empty());
+
+        enrollmentService.syncMissingProgressForEnrollment("enrollment-1");
+
+        ArgumentCaptor<LessonProgress> captor = ArgumentCaptor.forClass(LessonProgress.class);
+        verify(lessonProgressRepository).save(captor.capture());
+
+        LessonProgress savedProgress = captor.getValue();
+
+        assertEquals("enrollment-1", savedProgress.getEnrollmentId());
+        assertEquals("lesson-1", savedProgress.getLessonId());
+        assertEquals(LessonProgressState.UNLOCKED, savedProgress.getState());
+    }
+
+    @Test
+    void shouldNotSyncMissingProgressWhenEnrollmentDoesNotExist() {
+        when(enrollmentRepository.findById("enrollment-1"))
+                .thenReturn(Optional.empty());
+
+        enrollmentService.syncMissingProgressForEnrollment("enrollment-1");
+
+        verify(lessonRepository, never()).findByCourseIdOrderByLessonNumberAsc(anyString());
+        verify(lessonProgressRepository, never()).save(any(LessonProgress.class));
     }
 }

@@ -17,6 +17,7 @@ import zhaw.ch.lessonflow.repository.CourseRepository;
 import zhaw.ch.lessonflow.repository.EnrollmentRepository;
 import zhaw.ch.lessonflow.repository.LessonRepository;
 import zhaw.ch.lessonflow.services.CourseService;
+import zhaw.ch.lessonflow.services.EnrollmentService;
 import zhaw.ch.lessonflow.services.UserService;
 
 @RestController
@@ -34,6 +35,9 @@ public class LessonController {
 
     @Autowired
     CourseService courseService;
+
+    @Autowired
+    EnrollmentService enrollmentService;
 
     @Autowired
     UserService userService;
@@ -71,6 +75,9 @@ public class LessonController {
         );
 
         Lesson savedLesson = lessonRepository.save(fDAO);
+
+        enrollmentService.createProgressForNewLessonForExistingEnrollments(savedLesson);
+
         return new ResponseEntity<>(savedLesson, HttpStatus.CREATED);
     }
 

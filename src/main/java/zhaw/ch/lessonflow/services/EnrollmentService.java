@@ -40,44 +40,105 @@ public class EnrollmentService {
     public Enrollment createEnrollmentWithProgress(Enrollment enrollment) {
         Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
 
-        List<Lesson> lessons = lessonRepository.findByCourseId(savedEnrollment.getCourseId());
+        List<Lesson> lessons = lessonRepository.findByCourseIdOrderByLessonNumberAsc(
+                savedEnrollment.getCourseId());
 
-        for (int i = 0; i < lessons.size(); i++) {
-            Lesson lesson = lessons.get(i);
-
-            LessonProgressState state;
-            if (i == 0) {
-                state = LessonProgressState.UNLOCKED;
-            } else {
-                state = LessonProgressState.LOCKED;
-            }
-
-            LessonProgress lessonProgress = new LessonProgress(
-                    savedEnrollment.getId(),
-                    lesson.getId(),
-                    state,
-                    false,
-                    0
-            );
-
-            lessonProgressRepository.save(lessonProgress);
+        for (Lesson lesson : lessons) {
+            createProgressIfMissing(savedEnrollment, lesson);
         }
 
         return savedEnrollment;
     }
 
-    public Optional<Enrollment> getEnrollmentById(String enrollmentId) {
-    return enrollmentRepository.findById(enrollmentId);
-}
+    public void createProgressForNewLessonForExistingEnrollments(Lesson lesson) {
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(lesson.getCourseId());
 
-public boolean enrollmentBelongsToLearner(String enrollmentId, String learnerUserId) {
-    Optional<Enrollment> enrollmentData = enrollmentRepository.findById(enrollmentId);
-
-    if (enrollmentData.isEmpty()) {
-        return false;
+        for (Enrollment enrollment : enrollments) {
+            createProgressIfMissing(enrollment, lesson);
+        }
     }
 
-    Enrollment enrollment = enrollmentData.get();
-    return enrollment.getLearnerUserId().equals(learnerUserId);
-}
+    public void syncMissingProgressForEnrollment(String enrollmentId) {
+        Optional<Enrollment> enrollmentData = enrollmentRepository.findById(enrollmentId);
+
+        if (enrollmentData.isEmpty()) {
+            return;
+        }
+
+        Enrollment enrollment = enrollmentData.get();
+
+        List<Lesson> lessons = lessonRepository.findByCourseIdOrderByLessonNumberAsc(
+                enrollment.getCourseId());
+
+        for (Lesson lesson : lessons) {
+            createProgressIfMissing(enrollment, lesson);
+        }
+    }
+
+    public Optional<Enrollment> getEnrollmentById(String enrollmentId) {
+        return enrollmentRepository.findById(enrollmentId);
+    }
+
+    public boolean enrollmentBelongsToLearner(String enrollmentId, String learnerUserId) {
+        Optional<Enrollment> enrollmentData = enrollmentRepository.findById(enrollmentId);
+
+        if (enrollmentData.isEmpty()) {
+            return false;
+        }
+
+        Enrollment enrollment = enrollmentData.get();
+        return enrollment.getLearnerUserId().equals(learnerUserId);
+    }
+
+    private void createProgressIfMissing(Enrollment enrollment, Lesson lesson) {
+        Optional<LessonProgress> existingProgress =
+                lessonProgressRepository.findByEnrollmentIdAndLessonId(
+                        enrollment.getId(),
+                        lesson.getId());
+
+        if (existingProgress.isPresent()) {
+            return;
+        }
+
+        LessonProgressState state = determineInitialState(enrollment.getId(), lesson);
+
+        LessonProgress lessonProgress = new LessonProgress(
+                enrollment.getId(),
+                lesson.getId(),
+                state,
+                false,
+                0
+        );
+
+        lessonProgressRepository.save(lessonProgress);
+    }
+
+    private LessonProgressState determineInitialState(String enrollmentId, Lesson lesson) {
+        if (lesson.getLessonNumber() == 1) {
+            return LessonProgressState.UNLOCKED;
+        }
+
+        Optional<Lesson> previousLessonData =
+                lessonRepository.findByCourseIdAndLessonNumber(
+                        lesson.getCourseId(),
+                        lesson.getLessonNumber() - 1);
+
+        if (previousLessonData.isEmpty()) {
+            return LessonProgressState.LOCKED;
+        }
+
+        Lesson previousLesson = previousLessonData.get();
+
+        Optional<LessonProgress> previousProgressData =
+                lessonProgressRepository.findByEnrollmentIdAndLessonId(
+                        enrollmentId,
+                        previousLesson.getId());
+
+        if (previousProgressData.isPresent()
+                && previousProgressData.get().getState() == LessonProgressState.PASSED) {
+            return LessonProgressState.UNLOCKED;
+        }
+
+        return LessonProgressState.LOCKED;
+    }
 }

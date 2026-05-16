@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import zhaw.ch.lessonflow.model.Enrollment;
 import zhaw.ch.lessonflow.model.Lesson;
 import zhaw.ch.lessonflow.model.LessonProgress;
 import zhaw.ch.lessonflow.model.LessonProgressState;
@@ -36,17 +37,29 @@ public class LessonProgressServiceTest {
     @Mock
     LessonRepository lessonRepository;
 
+    @Mock
+    EnrollmentService enrollmentService;
+
     @InjectMocks
     LessonProgressService lessonProgressService;
 
+    Enrollment enrollment;
     LessonProgress progress;
     LessonProgress nextProgress;
 
     Lesson lesson1;
     Lesson lesson2;
+    Lesson lesson3;
 
     @BeforeEach
     void setUp() {
+        enrollment = new Enrollment(
+                "course-1",
+                "auth0|learner-1",
+                "ENROLLED"
+        );
+        ReflectionTestUtils.setField(enrollment, "id", "enrollment-1");
+
         progress = new LessonProgress(
                 "enrollment-1",
                 "lesson-1",
@@ -82,6 +95,15 @@ public class LessonProgressServiceTest {
                 "https://meeting-2.example.com"
         );
         ReflectionTestUtils.setField(lesson2, "id", "lesson-2");
+
+        lesson3 = new Lesson(
+                "course-1",
+                3,
+                "Lesson 3",
+                "Material 3",
+                "https://meeting-3.example.com"
+        );
+        ReflectionTestUtils.setField(lesson3, "id", "lesson-3");
     }
 
     @Test
@@ -271,46 +293,71 @@ public class LessonProgressServiceTest {
 
     @Test
     void shouldReturnCurrentLessonWhenProgressIsUnlocked() {
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
-                .thenReturn(List.of(progress));
-        when(lessonRepository.findById("lesson-1"))
-                .thenReturn(Optional.of(lesson1));
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
 
         Optional<Lesson> result = lessonProgressService.getCurrentLesson("enrollment-1");
 
         assertTrue(result.isPresent());
         assertEquals("lesson-1", result.get().getId());
         assertEquals("Lesson 1", result.get().getTitle());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
     }
 
     @Test
     void shouldReturnCurrentLessonWhenProgressIsMaterialDone() {
         progress.setState(LessonProgressState.MATERIAL_DONE);
 
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
-                .thenReturn(List.of(progress));
-        when(lessonRepository.findById("lesson-1"))
-                .thenReturn(Optional.of(lesson1));
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
 
         Optional<Lesson> result = lessonProgressService.getCurrentLesson("enrollment-1");
 
         assertTrue(result.isPresent());
         assertEquals("lesson-1", result.get().getId());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
     }
 
     @Test
     void shouldReturnCurrentLessonWhenProgressIsMeetingDone() {
         progress.setState(LessonProgressState.MEETING_DONE);
 
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
-                .thenReturn(List.of(progress));
-        when(lessonRepository.findById("lesson-1"))
-                .thenReturn(Optional.of(lesson1));
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(progress));
 
         Optional<Lesson> result = lessonProgressService.getCurrentLesson("enrollment-1");
 
         assertTrue(result.isPresent());
         assertEquals("lesson-1", result.get().getId());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
+    }
+
+    @Test
+    void shouldReturnEmptyCurrentLessonWhenEnrollmentDoesNotExist() {
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.empty());
+
+        Optional<Lesson> result = lessonProgressService.getCurrentLesson("enrollment-1");
+
+        assertFalse(result.isPresent());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
+        verify(lessonRepository, never()).findByCourseIdOrderByLessonNumberAsc(any());
     }
 
     @Test
@@ -331,25 +378,49 @@ public class LessonProgressServiceTest {
                 0
         );
 
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
-                .thenReturn(List.of(passedProgress, lockedProgress));
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1, lesson2));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(passedProgress));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-2"))
+                .thenReturn(Optional.of(lockedProgress));
 
         Optional<Lesson> result = lessonProgressService.getCurrentLesson("enrollment-1");
 
         assertFalse(result.isPresent());
 
-        verify(lessonRepository, never()).findById(any());
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
     }
 
     @Test
-    void shouldReturnEmptyProgressSummaryWhenNoProgressExists() {
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
+    void shouldReturnEmptyProgressSummaryWhenEnrollmentDoesNotExist() {
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.empty());
+
+        Optional<ProgressSummaryDTO> result =
+                lessonProgressService.getProgressSummary("enrollment-1");
+
+        assertFalse(result.isPresent());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
+        verify(lessonRepository, never()).findByCourseIdOrderByLessonNumberAsc(any());
+    }
+
+    @Test
+    void shouldReturnEmptyProgressSummaryWhenCourseHasNoLessons() {
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
                 .thenReturn(List.of());
 
         Optional<ProgressSummaryDTO> result =
                 lessonProgressService.getProgressSummary("enrollment-1");
 
         assertFalse(result.isPresent());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
     }
 
     @Test
@@ -378,8 +449,16 @@ public class LessonProgressServiceTest {
                 0
         );
 
-        when(lessonProgressRepository.findByEnrollmentId("enrollment-1"))
-                .thenReturn(List.of(passedProgress, currentProgress, lockedProgress));
+        when(enrollmentService.getEnrollmentById("enrollment-1"))
+                .thenReturn(Optional.of(enrollment));
+        when(lessonRepository.findByCourseIdOrderByLessonNumberAsc("course-1"))
+                .thenReturn(List.of(lesson1, lesson2, lesson3));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-1"))
+                .thenReturn(Optional.of(passedProgress));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-2"))
+                .thenReturn(Optional.of(currentProgress));
+        when(lessonProgressRepository.findByEnrollmentIdAndLessonId("enrollment-1", "lesson-3"))
+                .thenReturn(Optional.of(lockedProgress));
 
         Optional<ProgressSummaryDTO> result =
                 lessonProgressService.getProgressSummary("enrollment-1");
@@ -388,5 +467,7 @@ public class LessonProgressServiceTest {
         assertEquals(3, result.get().getTotalLessons());
         assertEquals(1, result.get().getPassedLessons());
         assertEquals("lesson-2", result.get().getCurrentLessonId());
+
+        verify(enrollmentService).syncMissingProgressForEnrollment("enrollment-1");
     }
 }
