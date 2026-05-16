@@ -3,6 +3,56 @@ import 'dotenv/config';
 
 const API_BASE_URL = process.env.API_BASE_URL;
 
+function buildQuizResult(attempt, quiz) {
+	const selectedOptionIndexes = attempt.selectedOptionIndexes || [];
+	const questions = quiz.questions || [];
+
+	let correctAnswers = 0;
+
+	const questionResults = questions.map((question, questionIndex) => {
+		const selectedOptionIndex = selectedOptionIndexes[questionIndex];
+		const correctOptionIndex = question.correctOptionIndex;
+		const isCorrect = selectedOptionIndex === correctOptionIndex;
+
+		if (isCorrect) {
+			correctAnswers++;
+		}
+
+		return {
+			questionText: question.questionText,
+			options: question.options || [],
+			selectedOptionIndex,
+			correctOptionIndex,
+			isCorrect
+		};
+	});
+
+	const scorePercent = Number(attempt.scorePercent || 0);
+	const roundedScorePercent = Math.round(scorePercent * 10) / 10;
+
+	return {
+		attemptId: attempt.id || null,
+		resultKey: attempt.id || `${Date.now()}`,
+		scorePercent: roundedScorePercent,
+		passed: attempt.passed,
+		totalQuestions: questions.length,
+		correctAnswers,
+		wrongAnswers: questions.length - correctAnswers,
+		questionResults
+	};
+}
+
+function isCourseCompleted(progressSummary) {
+	if (!progressSummary) {
+		return false;
+	}
+
+	return (
+		progressSummary.totalLessons > 0 &&
+		progressSummary.passedLessons === progressSummary.totalLessons
+	);
+}
+
 export async function load({ params, locals }) {
 	const jwt_token = locals.jwt_token;
 	const enrollmentId = params.id;
@@ -14,20 +64,14 @@ export async function load({ params, locals }) {
 			currentProgress: null,
 			progressList: [],
 			progressSummary: null,
+			courseCompleted: false,
 			quiz: null,
 			error: 'Authentication required'
 		};
 	}
 
 	try {
-		const [currentLessonResponse, progressResponse, summaryResponse] = await Promise.all([
-			axios({
-				method: 'get',
-				url: `${API_BASE_URL}/api/enrollment/${enrollmentId}/current-lesson`,
-				headers: {
-					Authorization: 'Bearer ' + jwt_token
-				}
-			}),
+		const [progressResponse, summaryResponse] = await Promise.all([
 			axios({
 				method: 'get',
 				url: `${API_BASE_URL}/api/progress/enrollment/${enrollmentId}`,
@@ -44,29 +88,49 @@ export async function load({ params, locals }) {
 			})
 		]);
 
-		const currentLesson = currentLessonResponse.data;
-		const progressList = progressResponse.data;
+		const progressList = progressResponse.data || [];
 		const progressSummary = summaryResponse.data;
+		const courseCompleted = isCourseCompleted(progressSummary);
 
-		const currentProgress = progressList.find(
-			(progress) => progress.lessonId === currentLesson.id
-		);
-
+		let currentLesson = null;
+		let currentProgress = null;
 		let quiz = null;
 
-		if (currentLesson?.id) {
-			try {
-				const quizResponse = await axios({
-					method: 'get',
-					url: `${API_BASE_URL}/api/quiz/lesson/${currentLesson.id}`,
-					headers: {
-						Authorization: 'Bearer ' + jwt_token
-					}
-				});
+		try {
+			const currentLessonResponse = await axios({
+				method: 'get',
+				url: `${API_BASE_URL}/api/enrollment/${enrollmentId}/current-lesson`,
+				headers: {
+					Authorization: 'Bearer ' + jwt_token
+				}
+			});
 
-				quiz = quizResponse.data;
-			} catch (error) {
-				console.log('No quiz found for current lesson:', error?.response?.data || error);
+			currentLesson = currentLessonResponse.data;
+
+			currentProgress = progressList.find(
+				(progress) => progress.lessonId === currentLesson.id
+			);
+
+			if (currentLesson?.id) {
+				try {
+					const quizResponse = await axios({
+						method: 'get',
+						url: `${API_BASE_URL}/api/quiz/lesson/${currentLesson.id}`,
+						headers: {
+							Authorization: 'Bearer ' + jwt_token
+						}
+					});
+
+					quiz = quizResponse.data;
+				} catch (error) {
+					if (error?.response?.status !== 404) {
+						console.log('Error loading quiz for current lesson:', error?.response?.data || error);
+					}
+				}
+			}
+		} catch (error) {
+			if (error?.response?.status !== 404) {
+				console.log('Error loading current lesson:', error?.response?.data || error);
 			}
 		}
 
@@ -76,6 +140,7 @@ export async function load({ params, locals }) {
 			currentProgress,
 			progressList,
 			progressSummary,
+			courseCompleted,
 			quiz,
 			error: null
 		};
@@ -88,6 +153,7 @@ export async function load({ params, locals }) {
 			currentProgress: null,
 			progressList: [],
 			progressSummary: null,
+			courseCompleted: false,
 			quiz: null,
 			error: 'Could not load learning flow'
 		};
@@ -149,7 +215,7 @@ export const actions = {
 			};
 		}
 
-		if (!quizId || !lessonId || !questionCount || Number.isNaN(questionCount)) {
+		if (!quizId || !lessonId || Number.isNaN(questionCount) || questionCount < 1) {
 			return {
 				error: 'Quiz attempt data is missing'
 			};
@@ -159,18 +225,19 @@ export const actions = {
 
 		for (let i = 0; i < questionCount; i++) {
 			const selectedOptionIndex = data.get(`selectedOptionIndex-${i}`);
+			const parsedSelectedOptionIndex = Number(selectedOptionIndex);
 
-			if (selectedOptionIndex === null) {
+			if (selectedOptionIndex === null || Number.isNaN(parsedSelectedOptionIndex)) {
 				return {
 					error: 'Please answer all quiz questions'
 				};
 			}
 
-			selectedOptionIndexes.push(Number(selectedOptionIndex));
+			selectedOptionIndexes.push(parsedSelectedOptionIndex);
 		}
 
 		try {
-			await axios({
+			const attemptResponse = await axios({
 				method: 'post',
 				url: `${API_BASE_URL}/api/attempt/submit`,
 				headers: {
@@ -185,8 +252,23 @@ export const actions = {
 				}
 			});
 
+			const attempt = attemptResponse.data;
+
+			const quizResponse = await axios({
+				method: 'get',
+				url: `${API_BASE_URL}/api/quiz/${quizId}`,
+				headers: {
+					Authorization: 'Bearer ' + jwt_token
+				}
+			});
+
+			const quiz = quizResponse.data;
+			const quizResult = buildQuizResult(attempt, quiz);
+
 			return {
-				success: 'Quiz attempt submitted'
+				success: 'Quiz attempt submitted',
+				attempt,
+				quizResult
 			};
 		} catch (error) {
 			console.log('Error submitting quiz attempt:', error?.response?.data || error);
