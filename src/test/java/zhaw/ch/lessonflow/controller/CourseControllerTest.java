@@ -51,6 +51,7 @@ public class CourseControllerTest {
                 "Learn the basics of rhythm and melody.",
                 CourseStatus.DRAFT);
         ReflectionTestUtils.setField(draftCourse, "id", "course-1");
+        draftCourse.setTutorEmail("tutor@lessonflow.com");
 
         publishedCourse = new Course(
                 "auth0|tutor-1",
@@ -58,6 +59,7 @@ public class CourseControllerTest {
                 "A published course.",
                 CourseStatus.PUBLISHED);
         ReflectionTestUtils.setField(publishedCourse, "id", "course-2");
+        publishedCourse.setTutorEmail("tutor@lessonflow.com");
 
         courseCreateDTO = new CourseCreateDTO();
         ReflectionTestUtils.setField(courseCreateDTO, "title", "Music Basics");
@@ -72,6 +74,7 @@ public class CourseControllerTest {
     void shouldCreateCourseWhenUserIsTutor() {
         when(userService.userHasRole("tutor")).thenReturn(true);
         when(userService.getCurrentUserId()).thenReturn("auth0|tutor-1");
+        when(userService.getEmail()).thenReturn("tutor@lessonflow.com");
         when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
             Course savedCourse = invocation.getArgument(0);
             ReflectionTestUtils.setField(savedCourse, "id", "course-1");
@@ -86,6 +89,7 @@ public class CourseControllerTest {
         assertEquals("Music Basics", response.getBody().getTitle());
         assertEquals("Learn the basics of rhythm and melody.", response.getBody().getDescription());
         assertEquals("auth0|tutor-1", response.getBody().getTutorUserId());
+        assertEquals("tutor@lessonflow.com", response.getBody().getTutorEmail());
         assertEquals(CourseStatus.DRAFT, response.getBody().getStatus());
 
         verify(courseRepository).save(any(Course.class));

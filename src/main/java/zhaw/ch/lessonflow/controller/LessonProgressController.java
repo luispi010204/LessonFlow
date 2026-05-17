@@ -17,6 +17,7 @@ import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.EnrollmentService;
 import zhaw.ch.lessonflow.services.LessonProgressService;
 import zhaw.ch.lessonflow.services.LessonService;
+import zhaw.ch.lessonflow.services.TutorNotificationService;
 import zhaw.ch.lessonflow.services.UserService;
 
 @RestController
@@ -40,6 +41,9 @@ public class LessonProgressController {
 
     @Autowired
     UserService userService;
+
+    @Autowired
+    TutorNotificationService tutorNotificationService;
 
     /*
      * Disabled:
@@ -138,6 +142,10 @@ public class LessonProgressController {
         Optional<LessonProgress> updatedProgress = lessonProgressService.markMaterialDone(id);
 
         if (updatedProgress.isPresent()) {
+            tutorNotificationService.notifyTutorMaterialDone(
+                    updatedProgress.get(),
+                    userService.getEmail());
+
             return new ResponseEntity<>(updatedProgress.get(), HttpStatus.OK);
         } else {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);

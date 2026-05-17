@@ -28,6 +28,7 @@ import zhaw.ch.lessonflow.services.CourseService;
 import zhaw.ch.lessonflow.services.EnrollmentService;
 import zhaw.ch.lessonflow.services.LessonProgressService;
 import zhaw.ch.lessonflow.services.LessonService;
+import zhaw.ch.lessonflow.services.TutorNotificationService;
 import zhaw.ch.lessonflow.services.UserService;
 import zhaw.ch.lessonflow.model.LessonProgressState;
 
@@ -51,6 +52,9 @@ public class LessonProgressControllerTest {
 
     @Mock
     UserService userService;
+
+    @Mock
+    TutorNotificationService tutorNotificationService;
 
     @InjectMocks
     LessonProgressController lessonProgressController;
@@ -264,7 +268,7 @@ public class LessonProgressControllerTest {
     }
 
     @Test
-    void shouldMarkMaterialDoneWhenLearnerOwnsEnrollment() {
+    void shouldMarkMaterialDoneWhenLearnerOwnsEnrollmentAndNotifyTutor() {
         LessonProgress materialDoneProgress = new LessonProgress(
                 "enrollment-1",
                 "lesson-1",
@@ -276,6 +280,7 @@ public class LessonProgressControllerTest {
         when(lessonProgressRepository.findById("progress-1")).thenReturn(Optional.of(lessonProgress));
         when(userService.userHasRole("learner")).thenReturn(true);
         when(userService.getCurrentUserId()).thenReturn("auth0|learner-1");
+        when(userService.getEmail()).thenReturn("learner@lessonflow.com");
         when(enrollmentService.enrollmentBelongsToLearner("enrollment-1", "auth0|learner-1"))
                 .thenReturn(true);
         when(lessonProgressService.markMaterialDone("progress-1"))
@@ -287,6 +292,10 @@ public class LessonProgressControllerTest {
         assertTrue(response.hasBody());
         assertEquals("progress-1", response.getBody().getId());
         assertEquals(LessonProgressState.MATERIAL_DONE, response.getBody().getState());
+
+        verify(tutorNotificationService).notifyTutorMaterialDone(
+                materialDoneProgress,
+                "learner@lessonflow.com");
     }
 
     @Test
