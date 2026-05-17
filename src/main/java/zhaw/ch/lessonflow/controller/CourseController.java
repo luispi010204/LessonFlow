@@ -40,8 +40,9 @@ public class CourseController {
                 userService.getCurrentUserId(),
                 fDTO.getTitle(),
                 fDTO.getDescription(),
-                CourseStatus.DRAFT
-        );
+                CourseStatus.DRAFT);
+
+        fDAO.setTutorEmail(userService.getEmail());
 
         Course savedCourse = courseRepository.save(fDAO);
         return new ResponseEntity<>(savedCourse, HttpStatus.CREATED);
@@ -116,8 +117,7 @@ public class CourseController {
 
         course.updateDetails(
                 fDTO.getTitle(),
-                fDTO.getDescription()
-        );
+                fDTO.getDescription());
 
         Course savedCourse = courseRepository.save(course);
         return new ResponseEntity<>(savedCourse, HttpStatus.OK);

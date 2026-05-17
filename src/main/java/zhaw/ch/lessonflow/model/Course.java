@@ -20,6 +20,8 @@ public class Course {
     @NonNull
     private String tutorUserId;
 
+    private String tutorEmail;
+
     @NonNull
     private String title;
 
@@ -28,6 +30,10 @@ public class Course {
 
     @NonNull
     private CourseStatus status;
+
+    public void setTutorEmail(String tutorEmail) {
+        this.tutorEmail = tutorEmail;
+    }
 
     public void publish() {
         this.status = CourseStatus.PUBLISHED;
