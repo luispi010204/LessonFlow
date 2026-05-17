@@ -36,6 +36,8 @@
 	<properties>
 		<java.version>25</java.version>
 		<spring-ai.version>2.0.0-M4</spring-ai.version>
+		<sonar.organization>luispi010204</sonar.organization>
+		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 	</properties>
 	
 	<dependencyManagement>
